@@ -138,7 +138,7 @@ function DashboardLayout() {
                           : 'bg-rose-500 text-white'
                       }`}
                     >
-                      3
+                      1
                     </span>
                   )}
                 </>
