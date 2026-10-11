@@ -60,7 +60,7 @@ async function auth(req, res, next) {
   } catch (error) {
     console.error(error)
 
-    res.status(500).json({
+    return res.status(500).json({
       mensagem: 'Erro de autenticação.'
     })
   }
