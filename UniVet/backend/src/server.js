@@ -15,6 +15,9 @@ const consultasRoutes = require('./routes/consultasRoutes')
 const cadastroRoutes = require('./routes/cadastroRoutes')
 const funcionariosRoutes = require('./routes/funcionariosRoutes')
 const vacinacaoRoutes = require('./routes/vacinacaoRoutes')
+const perfilRoutes = require('./routes/perfilRoutes')
+const rastreabilidadeRoutes = require('./routes/rastreabilidadeRoutes');
+
 
 const app = express()
 
@@ -44,6 +47,8 @@ app.use('/api/animais', animaisRoutes)
 app.use('/api/consultas', consultasRoutes)
 app.use('/api/funcionarios', funcionariosRoutes)
 app.use('/api/vacinacao', vacinacaoRoutes)
+app.use('/api/perfil', perfilRoutes)
+app.use('/api/rastreabilidade', rastreabilidadeRoutes);
 
 app.use((err, req, res, next) => {
   console.error('Erro na API:', err)

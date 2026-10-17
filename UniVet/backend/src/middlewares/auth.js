@@ -1,3 +1,5 @@
+
+const { createClient } = require('@supabase/supabase-js')
 const supabase = require('../services/supabase')
 
 async function auth(req, res, next) {
@@ -27,7 +29,7 @@ async function auth(req, res, next) {
       .maybeSingle()
 
     if (perfilError) {
-      console.error(perfilError)
+      console.error('Erro ao buscar perfil:', perfilError)
 
       return res.status(500).json({
         mensagem: 'Erro ao buscar perfil do usuário.'
@@ -52,13 +54,52 @@ async function auth(req, res, next) {
       })
     }
 
+    const chavePublica =
+      process.env.SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY
+
+    if (!chavePublica) {
+      console.error('Chave pública do Supabase não configurada.')
+
+      return res.status(500).json({
+        mensagem: 'Configuração do Supabase incompleta.'
+      })
+    }
+
+    
+      const supabaseUsuario = createClient(
+        process.env.SUPABASE_URL,
+        chavePublica,
+        {
+          global: {
+            headers: { Authorization: `Bearer ${token}` }
+          },
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+          }
+        }
+      )
+
+      const { data: identidade, error: erroIdentidade } =
+        await supabaseUsuario.rpc('testar_identidade_auditoria')
+
+      console.log('Identidade reconhecida pelo banco:', identidade)
+      console.log(
+        'Erro no teste de identidade:',
+        erroIdentidade?.message || null
+      )
+
+
     req.user = data.user
     req.perfil = perfil
     req.estabelecimentoId = perfil.estabelecimento_id
+    req.supabase = supabaseUsuario
 
-    next()
+    return next()
   } catch (error) {
-    console.error(error)
+    console.error('Erro de autenticação:', error)
 
     return res.status(500).json({
       mensagem: 'Erro de autenticação.'

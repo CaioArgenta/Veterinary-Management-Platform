@@ -7,8 +7,8 @@ function erro(mensagem, status = 400) {
   return error
 }
 
-async function listarAnimais(estabelecimentoId) {
-  const { data, error } = await supabase
+async function listarAnimais(estabelecimentoId, cliente = supabase) {
+  const { data, error } = await cliente
     .from('animais')
     .select(`
       id,
@@ -46,8 +46,8 @@ async function listarAnimais(estabelecimentoId) {
   }))
 }
 
-async function buscarAnimal(id, estabelecimentoId) {
-  const { data, error } = await supabase
+async function buscarAnimal(id, estabelecimentoId, cliente = supabase) {
+  const { data, error } = await cliente
     .from('animais')
     .select(`
       id,
@@ -87,10 +87,10 @@ async function buscarAnimal(id, estabelecimentoId) {
   }
 }
 
-async function validarTutor(tutorId, estabelecimentoId) {
+async function validarTutor(tutorId, estabelecimentoId, cliente = supabase) {
   if (!tutorId) return null
 
-  const { data, error } = await supabase
+  const { data, error } = await cliente
     .from('tutores')
     .select('id')
     .eq('id', tutorId)
@@ -136,10 +136,15 @@ function validarDados(dados) {
   }
 }
 
-async function relacionarTutor(animalId, tutorId, estabelecimentoId) {
+async function relacionarTutor(
+  animalId,
+  tutorId,
+  estabelecimentoId,
+  cliente = supabase
+) {
   if (!tutorId) return
 
-  const { error: erroRelacao } = await supabase
+  const { error: erroRelacao } = await cliente
     .from('animal_tutores')
     .insert({
       estabelecimento_id: estabelecimentoId,
@@ -149,21 +154,30 @@ async function relacionarTutor(animalId, tutorId, estabelecimentoId) {
     })
 
   if (erroRelacao) {
-    await supabase
+    const { error: erroDesativar } = await cliente
       .from('animais')
       .update({ ativo: false })
       .eq('id', animalId)
       .eq('estabelecimento_id', estabelecimentoId)
 
+    if (erroDesativar) {
+      console.error('Erro ao desativar animal após falha no vínculo:', erroDesativar)
+    }
+
     throw erroRelacao
   }
 }
 
-async function criarAnimal(dados, estabelecimentoId) {
+async function criarAnimal(dados, estabelecimentoId, cliente = supabase) {
   const animal = validarDados(dados)
-  const tutorId = await validarTutor(dados.tutor_id, estabelecimentoId)
 
-  const { data, error } = await supabase
+  const tutorId = await validarTutor(
+    dados.tutor_id,
+    estabelecimentoId,
+    cliente
+  )
+
+  const { data, error } = await cliente
     .from('animais')
     .insert({
       ...animal,
@@ -175,13 +189,23 @@ async function criarAnimal(dados, estabelecimentoId) {
 
   if (error) throw error
 
-  await relacionarTutor(data.id, tutorId, estabelecimentoId)
+  await relacionarTutor(
+    data.id,
+    tutorId,
+    estabelecimentoId,
+    cliente
+  )
 
-  return buscarAnimal(data.id, estabelecimentoId)
+  return buscarAnimal(data.id, estabelecimentoId, cliente)
 }
 
-async function atualizarAnimal(id, dados, estabelecimentoId) {
-  const atual = await buscarAnimal(id, estabelecimentoId)
+async function atualizarAnimal(
+  id,
+  dados,
+  estabelecimentoId,
+  cliente = supabase
+) {
+  const atual = await buscarAnimal(id, estabelecimentoId, cliente)
 
   if (!atual) return null
 
@@ -190,7 +214,7 @@ async function atualizarAnimal(id, dados, estabelecimentoId) {
     ...dados
   })
 
-  const { data, error } = await supabase
+  const { data, error } = await cliente
     .from('animais')
     .update({
       ...animal,
@@ -206,9 +230,13 @@ async function atualizarAnimal(id, dados, estabelecimentoId) {
   if (!data) return null
 
   if (dados.tutor_id !== undefined) {
-    const tutorId = await validarTutor(dados.tutor_id, estabelecimentoId)
+    const tutorId = await validarTutor(
+      dados.tutor_id,
+      estabelecimentoId,
+      cliente
+    )
 
-    const { error: erroRelacao } = await supabase
+    const { error: erroRelacao } = await cliente
       .from('animal_tutores')
       .delete()
       .eq('animal_id', id)
@@ -216,14 +244,19 @@ async function atualizarAnimal(id, dados, estabelecimentoId) {
 
     if (erroRelacao) throw erroRelacao
 
-    await relacionarTutor(id, tutorId, estabelecimentoId)
+    await relacionarTutor(
+      id,
+      tutorId,
+      estabelecimentoId,
+      cliente
+    )
   }
 
-  return buscarAnimal(id, estabelecimentoId)
+  return buscarAnimal(id, estabelecimentoId, cliente)
 }
 
-async function excluirAnimal(id, estabelecimentoId) {
-  const { data, error } = await supabase
+async function excluirAnimal(id, estabelecimentoId, cliente = supabase) {
+  const { data, error } = await cliente
     .from('animais')
     .update({
       ativo: false,

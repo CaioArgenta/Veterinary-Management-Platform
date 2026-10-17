@@ -1,8 +1,10 @@
+
 const tutoresService = require('../services/tutoresService')
 
 async function listarTutores(req, res) {
   try {
     const tutores = await tutoresService.listarTutores(
+      req.supabase,
       req.estabelecimentoId
     )
 
@@ -19,6 +21,7 @@ async function listarTutores(req, res) {
 async function buscarTutor(req, res) {
   try {
     const tutor = await tutoresService.buscarTutor(
+      req.supabase,
       req.params.id,
       req.estabelecimentoId
     )
@@ -42,6 +45,7 @@ async function buscarTutor(req, res) {
 async function criarTutor(req, res) {
   try {
     const tutor = await tutoresService.criarTutor(
+      req.supabase,
       req.body,
       req.estabelecimentoId
     )
@@ -59,6 +63,7 @@ async function criarTutor(req, res) {
 async function atualizarTutor(req, res) {
   try {
     const tutor = await tutoresService.atualizarTutor(
+      req.supabase,
       req.params.id,
       req.body,
       req.estabelecimentoId
@@ -83,6 +88,7 @@ async function atualizarTutor(req, res) {
 async function excluirTutor(req, res) {
   try {
     const tutor = await tutoresService.excluirTutor(
+      req.supabase,
       req.params.id,
       req.estabelecimentoId
     )

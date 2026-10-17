@@ -4,7 +4,8 @@ const animaisService = require('../services/animaisService')
 async function listar(req, res) {
   try {
     const animais = await animaisService.listarAnimais(
-      req.estabelecimentoId
+      req.estabelecimentoId,
+      req.supabase
     )
 
     return res.status(200).json(animais)
@@ -21,7 +22,8 @@ async function buscar(req, res) {
   try {
     const animal = await animaisService.buscarAnimal(
       req.params.id,
-      req.estabelecimentoId
+      req.estabelecimentoId,
+      req.supabase
     )
 
     if (!animal) {
@@ -44,7 +46,8 @@ async function criar(req, res) {
   try {
     const animal = await animaisService.criarAnimal(
       req.body,
-      req.estabelecimentoId
+      req.estabelecimentoId,
+      req.supabase
     )
 
     return res.status(201).json(animal)
@@ -62,7 +65,8 @@ async function atualizar(req, res) {
     const animal = await animaisService.atualizarAnimal(
       req.params.id,
       req.body,
-      req.estabelecimentoId
+      req.estabelecimentoId,
+      req.supabase
     )
 
     if (!animal) {
@@ -85,7 +89,8 @@ async function excluir(req, res) {
   try {
     const animal = await animaisService.excluirAnimal(
       req.params.id,
-      req.estabelecimentoId
+      req.estabelecimentoId,
+      req.supabase
     )
 
     if (!animal) {

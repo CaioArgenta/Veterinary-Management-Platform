@@ -1,4 +1,3 @@
-
 const vacinacaoService = require('../services/vacinacaoService')
 
 function responderErro(res, error, mensagem) {

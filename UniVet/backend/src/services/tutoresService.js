@@ -1,4 +1,3 @@
-const supabase = require('./supabase')
 
 function erro(mensagem, status = 400) {
   const error = new Error(mensagem)
@@ -14,8 +13,8 @@ function validarEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-async function listarTutores(estabelecimentoId) {
-  const { data, error } = await supabase
+async function listarTutores(supabaseUsuario, estabelecimentoId) {
+  const { data, error } = await supabaseUsuario
     .from('tutores')
     .select(`
       id,
@@ -50,8 +49,8 @@ async function listarTutores(estabelecimentoId) {
   return data || []
 }
 
-async function buscarTutor(id, estabelecimentoId) {
-  const { data, error } = await supabase
+async function buscarTutor(supabaseUsuario, id, estabelecimentoId) {
+  const { data, error } = await supabaseUsuario
     .from('tutores')
     .select(`
       id,
@@ -118,12 +117,13 @@ async function validarDadosTutor(dados) {
 }
 
 async function verificarDuplicados(
+  supabaseUsuario,
   dados,
   estabelecimentoId,
   id = null
 ) {
   if (dados.cpf) {
-    let consultaCpf = supabase
+    let consultaCpf = supabaseUsuario
       .from('tutores')
       .select('id')
       .eq('estabelecimento_id', estabelecimentoId)
@@ -134,7 +134,8 @@ async function verificarDuplicados(
       consultaCpf = consultaCpf.neq('id', id)
     }
 
-    const { data: tutorCpf, error: erroCpf } = await consultaCpf.maybeSingle()
+    const { data: tutorCpf, error: erroCpf } =
+      await consultaCpf.maybeSingle()
 
     if (erroCpf) {
       throw erroCpf
@@ -151,7 +152,7 @@ async function verificarDuplicados(
   }
 
   if (dados.email) {
-    let consultaEmail = supabase
+    let consultaEmail = supabaseUsuario
       .from('tutores')
       .select('id')
       .eq('estabelecimento_id', estabelecimentoId)
@@ -180,12 +181,16 @@ async function verificarDuplicados(
   }
 }
 
-async function criarTutor(dados, estabelecimentoId) {
+async function criarTutor(supabaseUsuario, dados, estabelecimentoId) {
   const tutor = await validarDadosTutor(dados)
 
-  await verificarDuplicados(tutor, estabelecimentoId)
+  await verificarDuplicados(
+    supabaseUsuario,
+    tutor,
+    estabelecimentoId
+  )
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseUsuario
     .from('tutores')
     .insert({
       estabelecimento_id: estabelecimentoId,
@@ -207,11 +212,12 @@ async function criarTutor(dados, estabelecimentoId) {
 }
 
 async function atualizarTutor(
+  supabaseUsuario,
   id,
   dados,
   estabelecimentoId
 ) {
-  const { data: tutorAtual, error: erroTutor } = await supabase
+  const { data: tutorAtual, error: erroTutor } = await supabaseUsuario
     .from('tutores')
     .select('id')
     .eq('id', id)
@@ -230,12 +236,13 @@ async function atualizarTutor(
   const tutor = await validarDadosTutor(dados)
 
   await verificarDuplicados(
+    supabaseUsuario,
     tutor,
     estabelecimentoId,
     id
   )
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseUsuario
     .from('tutores')
     .update({
       nome_completo: tutor.nome_completo,
@@ -257,8 +264,8 @@ async function atualizarTutor(
   return data
 }
 
-async function excluirTutor(id, estabelecimentoId) {
-  const { data, error } = await supabase
+async function excluirTutor(supabaseUsuario, id, estabelecimentoId) {
+  const { data, error } = await supabaseUsuario
     .from('tutores')
     .update({
       ativo: false,

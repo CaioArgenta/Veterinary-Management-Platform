@@ -6,7 +6,8 @@ const agendaRoutes = require('./routes/agendaRoutes')
 const consultasRoutes = require('./routes/consultasRoutes')
 const cadastroRoutes = require('./routes/cadastroRoutes')
 const vacinacaoRoutes = require('./routes/vacinacaoRoutes')
-
+const perfilRoutes = require('./routes/perfilRoutes')
+const rastreabilidadeRoutes = require('./routes/rastreabilidadeRoutes');
 
 const app = express()
 
@@ -18,6 +19,8 @@ app.use('/api/agenda', agendaRoutes)
 app.use('/api/tutores', tutoresRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/vacinacao', vacinacaoRoutes)
+app.use('/api/perfil', perfilRoutes)
+app.use('/api/rastreabilidade', rastreabilidadeRoutes);
 
 const PORT = process.env.PORT || 3000
 
