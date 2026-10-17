@@ -5,7 +5,7 @@ import logo from '../assets/gps.png'
 const NAV_LINKS = [
   { label: 'Funcionalidades', href: '#features' },
   { label: 'Como funciona', href: '#how-it-works' },
-  { label: 'Crescimento', href: '#growth' },
+  { label: 'Evolução', href: '#growth' },
   { label: 'Segurança', href: '#security' },
 ]
 
@@ -20,7 +20,7 @@ const FEATURES = [
       </svg>
     ),
     title: 'Tutores e Pacientes',
-    desc: 'Cadastre tutores e animais com histórico completo, alertas de atenção e informações de saúde centralizadas.',
+    desc: 'Cadastre tutores e animais e mantenha as principais informações organizadas em um único lugar.',
     color: 'bg-teal-50',
     accent: 'text-teal-700',
   },
@@ -34,7 +34,7 @@ const FEATURES = [
       </svg>
     ),
     title: 'Agenda e Consultas',
-    desc: 'Visualização mensal, semanal e diária. Detecção de conflitos, status de atendimento e controle de retornos.',
+    desc: 'Organize consultas e compromissos, acompanhe os horários e registre o status de cada atendimento.',
     color: 'bg-amber-50',
     accent: 'text-amber-700',
   },
@@ -49,7 +49,7 @@ const FEATURES = [
       </svg>
     ),
     title: 'Prontuário Eletrônico',
-    desc: 'Histórico clínico completo em linha do tempo. Anamnese, diagnóstico, prescrições e exames em um só lugar.',
+    desc: 'Centralize o histórico clínico do animal e mantenha seus registros organizados e acessíveis.',
     color: 'bg-blue-50',
     accent: 'text-blue-700',
   },
@@ -60,76 +60,46 @@ const FEATURES = [
       </svg>
     ),
     title: 'Vacinação',
-    desc: 'Controle de vacinas aplicadas, alertas de próximas doses e dashboard geral de pacientes com pendências.',
+    desc: 'Registre as vacinas aplicadas e acompanhe as próximas doses e pendências de cada paciente.',
     color: 'bg-green-50',
     accent: 'text-green-700',
   },
-  {
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-6 h-6">
-        <line x1="12" y1="1" x2="12" y2="23" />
-        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-      </svg>
-    ),
-    title: 'Financeiro',
-    desc: 'Receitas, despesas por categoria, resultado do período e evolução mensal para uma gestão saudável.',
-    color: 'bg-purple-50',
-    accent: 'text-purple-700',
-  },
-  {
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-6 h-6">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-        <line x1="12" y1="22.08" x2="12" y2="12" />
-      </svg>
-    ),
-    title: 'Estoque',
-    desc: 'Controle de produtos com alertas de nível mínimo e crítico configuráveis. Movimentações rastreadas.',
-    color: 'bg-orange-50',
-    accent: 'text-orange-700',
-  },
 ]
 
-const GROWTH_STAGES = [
+const ROADMAP_STAGES = [
   {
-    label: 'Autônomo',
-    desc: 'Um veterinário, um dispositivo. Comece grátis com tudo que precisa para organizar seus pacientes.',
-    icon: '🩺',
+    label: 'MVP atual',
+    desc: 'Animais, tutores, agenda, consultas, prontuários e vacinação formam a base atual do UniVet.',
+    icon: '🐾',
   },
   {
-    label: 'Consultório',
-    desc: 'Equipe pequena, múltiplos profissionais. Convites, permissões e agenda compartilhada.',
-    icon: '🏥',
+    label: 'Próximos recursos',
+    desc: 'Financeiro, estoque, leitos / internação e notificações estão planejados para futuras versões do sistema.',
+    icon: '📈',
   },
   {
-    label: 'Clínica',
-    desc: 'Operação maior, mais controle. Financeiro, estoque e relatórios completos.',
-    icon: '🏢',
-  },
-  {
-    label: 'Expansão',
-    desc: 'Multiunidade, hospital, rede. Arquitetura preparada para crescer junto com você.',
-    icon: '🌐',
+    label: 'Visão futura',
+    desc: 'Integração com WhatsApp, aplicativo mobile, portal do tutor e recursos para múltiplas unidades.',
+    icon: '🚀',
   },
 ]
 
 const SECURITY_ITEMS = [
   {
-    title: 'LGPD em dia',
+    title: 'Proteção de dados',
     desc: 'Dados tratados com minimização, controle de acesso por organização e auditoria de ações críticas.',
   },
   {
     title: 'Acesso por função',
-    desc: 'Veterinário, recepcionista e administrador com permissões diferentes.',
+    desc: 'Diferentes perfis de usuário possuem permissões de acordo com suas responsabilidades no sistema.',
   },
   {
     title: 'Prontuário protegido',
-    desc: 'Registros clínicos concluídos não podem ser excluídos. Alterações são auditadas com data e responsável.',
+    desc: 'Registros clínicos e alterações importantes possuem controle e rastreabilidade das ações.',
   },
   {
-    title: 'Senhas seguras',
-    desc: 'Armazenamento com hash seguro. Convites por link de ativação, sem senha enviada por e-mail.',
+    title: 'Autenticação segura',
+    desc: 'O acesso ao sistema utiliza autenticação e gerenciamento seguro das credenciais dos usuários.',
   },
 ]
 
@@ -204,7 +174,7 @@ function Navbar() {
             to="/cadastro"
             className="text-sm font-semibold bg-[#E05C2A] text-white px-5 py-2 rounded-[10px] hover:bg-[#C4501F] transition-colors"
           >
-            Começar gratuitamente
+            Criar conta
           </Link>
         </div>
 
@@ -258,7 +228,7 @@ function Navbar() {
             to="/cadastro"
             className="text-sm font-semibold bg-[#E05C2A] text-white px-5 py-2.5 rounded-[10px] text-center"
           >
-            Começar gratuitamente
+            Criar conta
           </Link>
         </div>
       )}
@@ -277,7 +247,7 @@ function HeroDashboard() {
         </div>
 
         <span className="text-xs font-medium ml-2 opacity-80">
-          Dashboard — Dr. Ana Souza
+          Dashboard — Dados demonstrativos
         </span>
       </div>
 
@@ -316,7 +286,7 @@ function HeroDashboard() {
 
         <div className="flex-1 p-4 bg-[#F7F5F0]">
           <p className="text-xs font-semibold text-[#0C4A45] mb-3 uppercase tracking-wider">
-            Hoje, 14 de mar
+            Visão geral
           </p>
 
           <div className="grid grid-cols-3 gap-2 mb-4">
@@ -333,7 +303,7 @@ function HeroDashboard() {
               },
               {
                 n: '3',
-                l: 'Vacinas vencendo',
+                l: 'Vacinas próximas',
                 c: 'bg-rose-100 text-rose-700',
               },
             ].map((stat) => (
@@ -428,9 +398,8 @@ function HeroSection() {
             </h1>
 
             <p className="text-lg text-[#4A5568] leading-relaxed mb-8 max-w-md">
-              Do autônomo à clínica de médio porte — o UniVet centraliza
-              tutores, animais, consultas, prontuários e vacinação em um único
-              ambiente.
+              O UniVet centraliza tutores, animais, consultas, prontuários e
+              vacinação em um único ambiente.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -438,7 +407,7 @@ function HeroSection() {
                 to="/cadastro"
                 className="inline-flex items-center gap-2 bg-[#E05C2A] text-white font-semibold px-6 py-3 rounded-[10px] hover:bg-[#C4501F] transition-colors text-sm"
               >
-                Começar gratuitamente
+                Criar minha conta
 
                 <svg
                   viewBox="0 0 20 20"
@@ -456,13 +425,9 @@ function HeroSection() {
                 to="/login"
                 className="inline-flex items-center gap-2 text-[#0C4A45] font-semibold px-6 py-3 rounded-[10px] border border-[#0C4A45]/30 hover:bg-[#0C4A45]/5 transition-colors text-sm"
               >
-                Entrar na conta
+                Entrar
               </Link>
             </div>
-
-            <p className="text-xs text-[#9CA3AF] mt-4">
-              Sem cartão de crédito. Comece em 2 minutos.
-            </p>
           </div>
 
           <div className="flex justify-center lg:justify-end">
@@ -472,16 +437,14 @@ function HeroSection() {
 
         <div className="mt-16 pt-10 border-t border-[#D8D5CE]">
           <p className="text-xs text-[#9CA3AF] text-center mb-6 uppercase tracking-widest font-medium">
-            Para veterinários que querem crescer
+            Pensado para diferentes rotinas veterinárias
           </p>
 
           <div className="flex flex-wrap justify-center gap-8 text-sm text-[#6B7280]">
             {[
               'Autônomos',
               'Consultórios',
-              'Pequenas clínicas',
-              'Atendimento domiciliar',
-              'Clínicas de médio porte',
+              'Clínicas',
             ].map((text) => (
               <span key={text} className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#0C4A45]/40" />
@@ -504,18 +467,18 @@ function FeaturesSection() {
             className="text-4xl font-normal text-[#0C1A1A] mb-4"
             style={{ fontFamily: 'DM Serif Display, serif' }}
           >
-            Tudo que você precisa,
+            Funcionalidades para a rotina,
             <br />
-            <em>sem o que não precisa</em>
+            <em>sem complicação</em>
           </h2>
 
           <p className="text-[#6B7280] max-w-xl mx-auto">
-            Cada módulo pensado para a rotina veterinária real — do primeiro
-            cadastro ao prontuário completo.
+            O MVP do UniVet reúne os principais recursos para organizar a
+            rotina veterinária e centralizar as informações dos pacientes.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {FEATURES.map((feature) => (
             <div
               key={feature.title}
@@ -549,7 +512,7 @@ function AnimalCenterSection() {
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
             <div className="inline-flex items-center gap-2 bg-[#E8F4F0] text-[#0C4A45] text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
-              Filosofia de produto
+              Conceito do UniVet
             </div>
 
             <h2
@@ -562,18 +525,17 @@ function AnimalCenterSection() {
             </h2>
 
             <p className="text-[#4A5568] leading-relaxed mb-6">
-              No UniVet, cada funcionalidade orbita o paciente. O tutor
-              apresenta o animal, e todo o histórico — consultas, prontuário,
-              vacinas, exames e prescrições — fica conectado em uma única
-              ficha.
+              No UniVet, as principais informações da rotina veterinária são
+              organizadas a partir do paciente. Tutores, consultas, prontuários
+              e vacinação ficam conectados ao histórico do animal.
             </p>
 
             <div className="space-y-3">
               {[
                 'Tutor → Animal → Consultas → Prontuário',
-                'Histórico clínico em linha do tempo',
-                'Alertas de atenção especial por animal',
-                'Vacinas em dia, próximas e atrasadas visíveis',
+                'Histórico clínico organizado',
+                'Informações importantes centralizadas por animal',
+                'Acompanhamento das vacinas e pendências',
               ].map((item) => (
                 <div key={item} className="flex items-start gap-3">
                   <div className="w-5 h-5 rounded-full bg-[#0C4A45] flex items-center justify-center shrink-0 mt-0.5">
@@ -647,22 +609,20 @@ function GrowthSection() {
             className="text-4xl font-normal text-white mb-4"
             style={{ fontFamily: 'DM Serif Display, serif' }}
           >
-            Comece pequeno.
+            Evolução do
             <br />
-            <em className="text-[#7DD3C8]">
-              Cresça junto com o UniVet.
-            </em>
+            <em className="text-[#7DD3C8]">UniVet</em>
           </h2>
 
           <p className="text-[#7DD3C8] max-w-xl mx-auto">
-            A plataforma acompanha cada etapa do seu crescimento, sem migrar
-            de sistema.
+            O projeto foi planejado para evoluir gradualmente, começando pelas
+            funcionalidades essenciais e ampliando seus recursos no futuro.
           </p>
         </div>
 
         <div className="flex flex-col lg:flex-row items-start gap-6">
           <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-visible w-full lg:w-64 shrink-0 pb-2 lg:pb-0">
-            {GROWTH_STAGES.map((stage, index) => (
+            {ROADMAP_STAGES.map((stage, index) => (
               <button
                 key={stage.label}
                 onClick={() => setActive(index)}
@@ -673,11 +633,12 @@ function GrowthSection() {
                 }`}
               >
                 <span className="text-xl">{stage.icon}</span>
+
                 <span className="font-semibold text-sm">
                   {stage.label}
                 </span>
 
-                {index < GROWTH_STAGES.length - 1 && (
+                {index < ROADMAP_STAGES.length - 1 && (
                   <svg
                     viewBox="0 0 16 16"
                     fill="none"
@@ -701,22 +662,22 @@ function GrowthSection() {
 
           <div className="flex-1 bg-white/10 rounded-2xl p-8 border border-white/20">
             <div className="text-5xl mb-4">
-              {GROWTH_STAGES[active].icon}
+              {ROADMAP_STAGES[active].icon}
             </div>
 
             <h3
               className="text-2xl font-normal text-white mb-3"
               style={{ fontFamily: 'DM Serif Display, serif' }}
             >
-              {GROWTH_STAGES[active].label}
+              {ROADMAP_STAGES[active].label}
             </h3>
 
             <p className="text-[#7DD3C8] text-lg leading-relaxed">
-              {GROWTH_STAGES[active].desc}
+              {ROADMAP_STAGES[active].desc}
             </p>
 
             <div className="mt-8 flex items-center gap-3">
-              {GROWTH_STAGES.map((_, index) => (
+              {ROADMAP_STAGES.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setActive(index)}
@@ -749,15 +710,16 @@ function SecuritySection() {
               className="text-4xl font-normal text-[#0C1A1A] mb-6"
               style={{ fontFamily: 'DM Serif Display, serif' }}
             >
-              Seus dados e os dos
+              Privacidade e
               <br />
-              <em>seus pacientes protegidos</em>
+              <em>proteção de dados</em>
             </h2>
 
             <p className="text-[#4A5568] leading-relaxed">
-              Arquitetura pensada para LGPD desde o início. Cada organização
-              tem acesso exclusivo aos seus próprios dados, com rastreabilidade
-              das ações críticas.
+              O UniVet foi desenvolvido considerando princípios de segurança,
+              privacidade e proteção de dados previstos na LGPD. Cada
+              organização possui acesso exclusivo aos seus próprios dados, com
+              controle de acesso e rastreabilidade das ações críticas.
             </p>
           </div>
 
@@ -809,16 +771,16 @@ function CtaSection() {
               className="text-4xl lg:text-5xl font-normal text-white mb-4 leading-tight"
               style={{ fontFamily: 'DM Serif Display, serif' }}
             >
-              Pronto para organizar
+              Organize sua
               <br />
               <em className="text-[#7DD3C8]">
-                sua prática veterinária?
+                rotina veterinária
               </em>
             </h2>
 
             <p className="text-[#7DD3C8] mb-8 text-lg">
-              Crie sua conta gratuitamente e comece a gerenciar tutores,
-              animais e consultas em minutos.
+              Crie sua conta e comece a centralizar tutores, animais e
+              consultas no UniVet.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -826,7 +788,7 @@ function CtaSection() {
                 to="/cadastro"
                 className="inline-flex items-center justify-center gap-2 bg-[#E05C2A] text-white font-semibold px-7 py-3.5 rounded-[10px] hover:bg-[#C4501F] transition-colors"
               >
-                Criar conta gratuita
+                Criar minha conta
 
                 <svg
                   viewBox="0 0 20 20"
@@ -849,7 +811,7 @@ function CtaSection() {
             </div>
 
             <p className="text-white/50 text-xs mt-5">
-              Sem cartão de crédito · Dados seguros · LGPD
+              Privacidade · Segurança · LGPD
             </p>
           </div>
         </div>
@@ -872,25 +834,25 @@ function Footer() {
               />
             </div>
 
-            <span className="text-white font-semibold text-sm">
-              UniVet
-            </span>
+            <div>
+              <span className="text-white font-semibold text-sm block">
+                UniVet
+              </span>
+
+              <span className="text-white/40 text-[10px]">
+                Gestão veterinária centrada no animal
+              </span>
+            </div>
           </div>
 
           <div className="flex gap-6 text-sm">
-            <a href="#" className="hover:text-white transition-colors">
-              Privacidade
-            </a>
-            <a href="#" className="hover:text-white transition-colors">
-              Termos
-            </a>
-            <a href="#" className="hover:text-white transition-colors">
-              Contato
-            </a>
+            <Link to="/privacidade">Privacidade</Link>
+            <Link to="/termos">Termos</Link>
+            <Link to="/contato">Contato</Link>
           </div>
 
           <p className="text-xs">
-            © 2026 UniVet. Feito para veterinários.
+            © 2026 UniVet. Projeto acadêmico.
           </p>
         </div>
       </div>

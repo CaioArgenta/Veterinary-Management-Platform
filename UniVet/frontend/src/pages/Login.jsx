@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { supabase } from '../services/supabase'
 import { Link, useNavigate } from 'react-router-dom'
 import logo from '../assets/gps.png'
 
@@ -10,20 +11,120 @@ export default function Login() {
   const [erro, setErro] = useState('')
   const navigate = useNavigate()
 
-  function handleSubmit(e) {
+  async function configurarPerfilSeNecessario(user) {
+    const { data: perfil, error: perfilError } = await supabase
+      .from('perfis')
+      .select('id, estabelecimento_id, tipo')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (perfilError) {
+      console.error('Erro ao buscar perfil:', perfilError)
+      throw new Error(
+        `Erro ao verificar perfil: ${perfilError.message}`
+      )
+    }
+
+    if (perfil) {
+      return
+    }
+
+    const metadata = user.user_metadata || {}
+
+    console.log('Usuário:', user)
+    console.log('Metadata:', metadata)
+
+    if (
+      !metadata.nome_estabelecimento ||
+      !metadata.tipo_estabelecimento ||
+      !metadata.nome_completo
+    ) {
+      throw new Error(
+        'Os dados do cadastro não foram encontrados para este usuário.'
+      )
+    }
+
+    const { error: cadastroError } = await supabase.rpc(
+      'criar_estabelecimento_inicial',
+      {
+        p_nome_estabelecimento: metadata.nome_estabelecimento,
+        p_tipo_estabelecimento: metadata.tipo_estabelecimento,
+        p_nome_completo: metadata.nome_completo,
+        p_email: user.email,
+        p_telefone: metadata.telefone || null,
+        p_crmv: metadata.crmv || null,
+      }
+    )
+
+    if (cadastroError) {
+      console.error('Erro ao criar estabelecimento:', cadastroError)
+
+      throw new Error(
+        `Erro ao criar estabelecimento: ${cadastroError.message}`
+      )
+    }
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault()
+
     setErro('')
 
-    if (!email || !senha) {
+    if (!email.trim() || !senha) {
       setErro('Preencha e-mail e senha para continuar.')
       return
     }
 
     setLoading(true)
 
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: senha,
+      })
+
+      if (error) {
+        console.error('ERRO LOGIN:', error)
+
+        if (
+          error.message.toLowerCase().includes('invalid login credentials')
+        ) {
+          setErro('E-mail ou senha incorretos.')
+        } else if (
+          error.message.toLowerCase().includes('email not confirmed')
+        ) {
+          setErro(
+            'Confirme seu e-mail antes de entrar.'
+          )
+        } else {
+          setErro(error.message)
+        }
+
+        return
+      }
+
+      if (!data?.user) {
+        setErro('Usuário não encontrado após o login.')
+        return
+      }
+
+      console.log('Login realizado:', data.user)
+
+      await configurarPerfilSeNecessario(data.user)
+
       navigate('/app/dashboard')
-    }, 1200)
+    } catch (error) {
+      console.error('ERRO COMPLETO:', error)
+
+      await supabase.auth.signOut()
+
+      setErro(
+        error?.message ||
+        'Não foi possível finalizar o login.'
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -33,11 +134,9 @@ export default function Login() {
     >
       {/* Painel esquerdo */}
       <div className="hidden lg:flex lg:w-[480px] xl:w-[560px] shrink-0 bg-[#0C4A45] flex-col justify-between p-12 relative overflow-hidden">
-        {/* Círculos decorativos */}
         <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/5 pointer-events-none" />
         <div className="absolute bottom-20 -left-16 w-56 h-56 rounded-full bg-white/5 pointer-events-none" />
 
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 relative z-10">
           <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center overflow-hidden">
             <img
@@ -52,7 +151,6 @@ export default function Login() {
           </span>
         </Link>
 
-        {/* Conteúdo central */}
         <div className="relative z-10">
           <h2
             className="text-4xl font-normal text-white mb-4 leading-tight"
@@ -68,7 +166,6 @@ export default function Login() {
             onde parou.
           </p>
 
-          {/* Estatísticas */}
           <div className="grid grid-cols-2 gap-4">
             {[
               { n: '4.2k+', l: 'Veterinários ativos' },
@@ -92,7 +189,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Rodapé */}
         <p className="text-white/30 text-xs relative z-10">
           © 2026 UniVet · Feito para veterinários brasileiros
         </p>
@@ -100,7 +196,6 @@ export default function Login() {
 
       {/* Painel direito */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        {/* Logo mobile */}
         <Link
           to="/"
           className="flex items-center gap-2 mb-8 lg:hidden"
@@ -118,7 +213,6 @@ export default function Login() {
           </span>
         </Link>
 
-        {/* Formulário */}
         <div className="w-full max-w-[400px]">
           <div className="mb-8">
             <h1
@@ -139,7 +233,6 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Erro */}
           {erro && (
             <div className="mb-5 flex items-center gap-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm">
               <svg
@@ -153,7 +246,7 @@ export default function Login() {
                 />
               </svg>
 
-              {erro}
+              <span>{erro}</span>
             </div>
           )}
 
@@ -182,6 +275,7 @@ export default function Login() {
 
                 <a
                   href="#"
+                  onClick={(e) => e.preventDefault()}
                   className="text-xs text-[#0C4A45] hover:underline font-medium"
                 >
                   Esqueci a senha
@@ -283,23 +377,22 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Termos */}
           <div className="mt-8 pt-6 border-t border-[#EAE8E3] text-center">
             <p className="text-xs text-[#9CA3AF]">
               Ao entrar, você concorda com nossos{' '}
-              <a
-                href="#"
+              <Link
+                to="/termos"
                 className="text-[#0C4A45] hover:underline"
               >
                 Termos de Uso
-              </a>{' '}
+              </Link>{' '}
               e{' '}
-              <a
-                href="#"
+              <Link
+                to="/privacidade"
                 className="text-[#0C4A45] hover:underline"
               >
                 Política de Privacidade
-              </a>
+              </Link>
               .
             </p>
           </div>

@@ -11,6 +11,9 @@ import Animais from './pages/Animais'
 import Agenda from './pages/Agenda'
 import Prontuarios from './pages/Prontuarios'
 import Vacinacao from './pages/Vacinacao'
+import Privacidade from './pages/Privacidade'
+import Termos from './pages/Termos'
+import Contato from './pages/Contato'
 
 function App() {
   return (
@@ -20,6 +23,10 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
+
+        <Route path="/privacidade" element={<Privacidade />} />
+        <Route path="/termos" element={<Termos />} />
+        <Route path="/contato" element={<Contato />} />
 
         <Route path="/app" element={<DashboardLayout />}>
 

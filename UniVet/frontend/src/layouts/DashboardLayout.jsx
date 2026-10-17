@@ -1,5 +1,7 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import logo from '../assets/gps.png'
+import { supabase } from '../services/supabase'
 
 const NAV = [
   {
@@ -66,6 +68,15 @@ const NAV = [
   },
 ]
 
+const PAGE_TITLES = {
+  '/app/dashboard': 'Dashboard',
+  '/app/tutores': 'Tutores',
+  '/app/animais': 'Animais',
+  '/app/agenda': 'Agenda',
+  '/app/prontuario': 'Prontuário',
+  '/app/vacinacao': 'Vacinação',
+}
+
 function Logo() {
   return (
     <div className="flex items-center gap-2.5 px-4 py-5">
@@ -84,8 +95,115 @@ function Logo() {
   )
 }
 
+function formatarTipoUsuario(tipo) {
+  const tipos = {
+    ADMINISTRADOR: 'Administrador',
+    VETERINARIO: 'Veterinário',
+    FUNCIONARIO: 'Funcionário',
+  }
+
+  return tipos[tipo] || 'Usuário'
+}
+
 function DashboardLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
+
+  const [perfil, setPerfil] = useState(null)
+  const [carregando, setCarregando] = useState(true)
+  const [vacinasPendentes, setVacinasPendentes] = useState(0)
+
+  useEffect(() => {
+    carregarPerfil()
+  }, [])
+
+  async function carregarPerfil() {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        navigate('/login', { replace: true })
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('perfis')
+        .select(
+          `
+          id,
+          nome_completo,
+          email,
+          telefone,
+          tipo,
+          crmv,
+          estabelecimento_id
+        `
+        )
+        .eq('id', user.id)
+        .single()
+
+      if (error) {
+        console.error('Erro ao carregar perfil:', error)
+        return
+      }
+
+      setPerfil(data)
+
+      const hoje = new Date().toISOString().split('T')[0]
+
+      const { count, error: vacinaError } = await supabase
+        .from('vacinacoes')
+        .select('id', {
+          count: 'exact',
+          head: true,
+        })
+        .eq('estabelecimento_id', data.estabelecimento_id)
+        .not('proxima_dose', 'is', null)
+        .lte('proxima_dose', hoje)
+
+      if (vacinaError) {
+        console.error(
+          'Erro ao carregar vacinas pendentes:',
+          vacinaError
+        )
+        return
+      }
+
+      setVacinasPendentes(count || 0)
+    } catch (error) {
+      console.error('Erro inesperado:', error)
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  async function sair() {
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.error('Erro ao sair:', error)
+      return
+    }
+
+    navigate('/login', { replace: true })
+  }
+
+  const nomeCompleto = perfil?.nome_completo || 'Usuário'
+
+  const primeiroNome = nomeCompleto
+    .trim()
+    .split(' ')[0]
+
+  const inicial = primeiroNome
+    ? primeiroNome.charAt(0).toUpperCase()
+    : 'U'
+
+  const tipoUsuario = formatarTipoUsuario(perfil?.tipo)
+
+  const tituloPagina =
+    PAGE_TITLES[location.pathname] || 'UniVet'
 
   return (
     <div
@@ -130,17 +248,18 @@ function DashboardLayout() {
 
                   {item.label}
 
-                  {item.label === 'Vacinação' && (
-                    <span
-                      className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                        isActive
-                          ? 'bg-white/20 text-white'
-                          : 'bg-rose-500 text-white'
-                      }`}
-                    >
-                      1
-                    </span>
-                  )}
+                  {item.label === 'Vacinação' &&
+                    vacinasPendentes > 0 && (
+                      <span
+                        className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                          isActive
+                            ? 'bg-white/20 text-white'
+                            : 'bg-rose-500 text-white'
+                        }`}
+                      >
+                        {vacinasPendentes}
+                      </span>
+                    )}
                 </>
               )}
             </NavLink>
@@ -149,24 +268,28 @@ function DashboardLayout() {
 
         {/* Usuário */}
         <div className="p-3 border-t border-white/10">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-white/10 cursor-pointer transition-colors">
-            
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-white/10 transition-colors">
+
             <div className="w-8 h-8 rounded-full bg-[#7DD3C8] flex items-center justify-center text-[#0C4A45] font-bold text-sm shrink-0">
-              A
+              {carregando ? '...' : inicial}
             </div>
 
             <div className="flex-1 min-w-0">
               <p className="text-white text-xs font-semibold truncate">
-                Dra. Ana Souza
+                {carregando ? 'Carregando...' : primeiroNome}
               </p>
 
               <p className="text-white/40 text-[10px] truncate">
-                CRMV-SP 12345
+                {carregando
+                  ? ''
+                  : perfil?.crmv
+                    ? `CRMV ${perfil.crmv}`
+                    : tipoUsuario}
               </p>
             </div>
 
             <button
-              onClick={() => navigate('/')}
+              onClick={sair}
               title="Sair"
               className="text-white/40 hover:text-white transition-colors"
             >
@@ -192,7 +315,7 @@ function DashboardLayout() {
 
         <header className="h-14 bg-white border-b border-[#EAE8E3] flex items-center px-6 shrink-0">
           <span className="font-semibold text-[#0C1A1A]">
-            UniVet
+            {tituloPagina}
           </span>
         </header>
 
