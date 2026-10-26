@@ -25,6 +25,7 @@ const app = express()
 const corsOptions = {
   origin: [
     'https://veterinary-management-platform-f0eq9zj6f.vercel.app',
+    'https://veterinary-management-platform-761c5j1jc.vercel.app',
     'https://musical-pancake-7g9vpx44rq72x545-5173.app.github.dev',
     'http://localhost:5173'
   ],
