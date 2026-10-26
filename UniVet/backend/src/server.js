@@ -21,17 +21,21 @@ const rastreabilidadeRoutes = require('./routes/rastreabilidadeRoutes');
 
 const app = express()
 
-app.use(cors({
+
+const corsOptions = {
   origin: [
+    'https://veterinary-management-platform-f0eq9zj6f.vercel.app',
     'https://musical-pancake-7g9vpx44rq72x545-5173.app.github.dev',
     'http://localhost:5173'
   ],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: false
-}))
+}
 
-app.options(/.*/, cors())
+app.use(cors(corsOptions))
+app.options(/.*/, cors(corsOptions))
+
 
 app.use(express.json())
 
