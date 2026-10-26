@@ -1,6 +1,7 @@
+
 import { useState } from 'react'
-import { supabase } from '../services/supabase'
 import { Link, useNavigate } from 'react-router-dom'
+import { entrar, recuperarSenha } from '../services/auth'
 import logo from '../assets/gps.png'
 
 export default function Login() {
@@ -8,140 +9,84 @@ export default function Login() {
   const [senha, setSenha] = useState('')
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [recuperandoSenha, setRecuperandoSenha] = useState(false)
   const [erro, setErro] = useState('')
+  const [mensagem, setMensagem] = useState('')
+
   const navigate = useNavigate()
-
-  async function configurarPerfilSeNecessario(user) {
-    const { data: perfil, error: perfilError } = await supabase
-      .from('perfis')
-      .select('id, estabelecimento_id, tipo')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (perfilError) {
-      console.error('Erro ao buscar perfil:', perfilError)
-      throw new Error(
-        `Erro ao verificar perfil: ${perfilError.message}`
-      )
-    }
-
-    if (perfil) {
-      return
-    }
-
-    const metadata = user.user_metadata || {}
-
-    console.log('Usuário:', user)
-    console.log('Metadata:', metadata)
-
-    if (
-      !metadata.nome_estabelecimento ||
-      !metadata.tipo_estabelecimento ||
-      !metadata.nome_completo
-    ) {
-      throw new Error(
-        'Os dados do cadastro não foram encontrados para este usuário.'
-      )
-    }
-
-    const { error: cadastroError } = await supabase.rpc(
-      'criar_estabelecimento_inicial',
-      {
-        p_nome_estabelecimento: metadata.nome_estabelecimento,
-        p_tipo_estabelecimento: metadata.tipo_estabelecimento,
-        p_nome_completo: metadata.nome_completo,
-        p_email: user.email,
-        p_telefone: metadata.telefone || null,
-        p_crmv: metadata.crmv || null,
-      }
-    )
-
-    if (cadastroError) {
-      console.error('Erro ao criar estabelecimento:', cadastroError)
-
-      throw new Error(
-        `Erro ao criar estabelecimento: ${cadastroError.message}`
-      )
-    }
-  }
 
   async function handleSubmit(e) {
     e.preventDefault()
-
     setErro('')
+    setMensagem('')
 
-    if (!email.trim() || !senha) {
-      setErro('Preencha e-mail e senha para continuar.')
+    const emailInformado = email.trim()
+
+    if (!emailInformado || !senha) {
+      setErro('Preencha o e-mail e a senha para continuar.')
       return
     }
 
     setLoading(true)
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: senha,
-      })
-
-      if (error) {
-        console.error('ERRO LOGIN:', error)
-
-        if (
-          error.message.toLowerCase().includes('invalid login credentials')
-        ) {
-          setErro('E-mail ou senha incorretos.')
-        } else if (
-          error.message.toLowerCase().includes('email not confirmed')
-        ) {
-          setErro(
-            'Confirme seu e-mail antes de entrar.'
-          )
-        } else {
-          setErro(error.message)
-        }
-
-        return
-      }
-
-      if (!data?.user) {
-        setErro('Usuário não encontrado após o login.')
-        return
-      }
-
-      console.log('Login realizado:', data.user)
-
-      await configurarPerfilSeNecessario(data.user)
-
-      navigate('/app/dashboard')
+      await entrar(emailInformado, senha)
+      navigate('/app/dashboard', { replace: true })
     } catch (error) {
-      console.error('ERRO COMPLETO:', error)
-
-      await supabase.auth.signOut()
-
-      setErro(
-        error?.message ||
-        'Não foi possível finalizar o login.'
-      )
+      setErro(error.message || 'Não foi possível entrar na sua conta.')
     } finally {
       setLoading(false)
     }
   }
 
+  async function handleRecuperarSenha() {
+    setErro('')
+    setMensagem('')
+
+    if (!email.trim()) {
+      setErro('Informe seu e-mail no campo acima para recuperar a senha.')
+      return
+    }
+
+    setRecuperandoSenha(true)
+
+    try {
+      await recuperarSenha(email.trim())
+      setMensagem(
+        'Se o e-mail estiver cadastrado, você receberá as instruções para recuperar sua senha.'
+      )
+    } catch (error) {
+      setErro(error.message || 'Não foi possível solicitar a recuperação.')
+    } finally {
+      setRecuperandoSenha(false)
+    }
+  }
+
   return (
-    <div
+    <main
       className="min-h-screen bg-[#F7F5F0] flex"
       style={{ fontFamily: 'Outfit, sans-serif' }}
     >
-      {/* Painel esquerdo */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[560px] shrink-0 bg-[#0C4A45] flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute bottom-20 -left-16 w-56 h-56 rounded-full bg-white/5 pointer-events-none" />
+      <aside className="hidden lg:flex lg:w-[420px] xl:w-[500px] shrink-0 bg-[#0C4A45] flex-col justify-between p-10 xl:p-12 relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/5 pointer-events-none"
+        />
 
-        <Link to="/" className="flex items-center gap-2.5 relative z-10">
-          <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="absolute bottom-20 -left-16 w-56 h-56 rounded-full bg-white/5 pointer-events-none"
+        />
+
+        <Link
+          to="/"
+          aria-label="UniVet - página inicial"
+          className="flex items-center gap-3 relative z-10 w-fit"
+        >
+          <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center overflow-hidden">
             <img
               src={logo}
-              alt="UniVet"
+              alt=""
               className="w-full h-full object-contain"
             />
           </div>
@@ -151,172 +96,235 @@ export default function Login() {
           </span>
         </Link>
 
-        <div className="relative z-10">
+        <div className="relative z-10 max-w-md">
+          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-[#7DD3C8] mb-5">
+            Gestão veterinária
+          </span>
+
           <h2
-            className="text-4xl font-normal text-white mb-4 leading-tight"
+            className="text-4xl xl:text-5xl font-normal text-white mb-5 leading-tight"
             style={{ fontFamily: 'DM Serif Display, serif' }}
           >
-            Bem-vindo de
+            Cuidado que conecta.
             <br />
-            <em className="text-[#7DD3C8]">volta</em>
+            <em className="text-[#7DD3C8]">Gestão que simplifica.</em>
           </h2>
 
-          <p className="text-[#7DD3C8] text-lg leading-relaxed mb-10">
-            Seus pacientes estão esperando. Acesse sua conta e continue de
-            onde parou.
+          <p className="text-white/75 text-base xl:text-lg leading-relaxed">
+            Organize tutores, pacientes, consultas e vacinações em um só lugar.
+            Mais organização para você cuidar do que realmente importa.
           </p>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="mt-9 space-y-4">
             {[
-              { n: '4.2k+', l: 'Veterinários ativos' },
-              { n: '98k+', l: 'Animais cadastrados' },
-              { n: '310k+', l: 'Consultas realizadas' },
-              { n: '100%', l: 'Dados protegidos' },
-            ].map((s) => (
-              <div
-                key={s.l}
-                className="bg-white/10 rounded-xl p-4"
-              >
-                <p className="text-2xl font-bold text-white">
-                  {s.n}
-                </p>
+              'Cadastro de tutores e animais',
+              'Agenda e acompanhamento de consultas',
+              'Prontuários e controle de vacinação',
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-3">
+                <span className="w-6 h-6 shrink-0 rounded-full bg-white/10 flex items-center justify-center text-[#7DD3C8]">
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="w-3.5 h-3.5"
+                    aria-hidden="true"
+                  >
+                    <path d="m4 10 4 4 8-8" />
+                  </svg>
+                </span>
 
-                <p className="text-xs text-[#7DD3C8] mt-0.5">
-                  {s.l}
-                </p>
+                <span className="text-sm text-white/85">{item}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-white/30 text-xs relative z-10">
-          © 2026 UniVet · Feito para veterinários brasileiros
+        <p className="text-white/40 text-xs relative z-10">
+          © {new Date().getFullYear()} UniVet
         </p>
-      </div>
+      </aside>
 
-      {/* Painel direito */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <section className="flex-1 flex flex-col items-center justify-center px-5 py-10 sm:px-8">
         <Link
           to="/"
-          className="flex items-center gap-2 mb-8 lg:hidden"
+          aria-label="UniVet - página inicial"
+          className="flex items-center gap-2.5 mb-10 lg:hidden"
         >
-          <div className="w-7 h-7 rounded-lg bg-[#0C4A45] flex items-center justify-center overflow-hidden">
+          <div className="w-9 h-9 rounded-xl bg-[#0C4A45] flex items-center justify-center overflow-hidden">
             <img
               src={logo}
-              alt="UniVet"
+              alt=""
               className="w-full h-full object-contain"
             />
           </div>
 
-          <span className="font-semibold text-[#0C1A1A] text-lg">
+          <span className="font-semibold text-[#0C1A1A] text-xl">
             UniVet
           </span>
         </Link>
 
-        <div className="w-full max-w-[400px]">
-          <div className="mb-8">
+        <div className="w-full max-w-[410px]">
+          <header className="mb-8">
+            <p className="text-sm font-medium text-[#0C4A45] mb-2">
+              Bem-vindo de volta
+            </p>
+
             <h1
-              className="text-3xl font-normal text-[#0C1A1A] mb-2"
+              className="text-3xl sm:text-4xl font-normal text-[#0C1A1A] mb-3"
               style={{ fontFamily: 'DM Serif Display, serif' }}
             >
               Entrar na conta
             </h1>
 
-            <p className="text-[#6B7280] text-sm">
-              Não tem conta?{' '}
-              <Link
-                to="/cadastro"
-                className="text-[#0C4A45] font-semibold hover:underline"
-              >
-                Criar gratuitamente
-              </Link>
+            <p className="text-[#6B7280] text-sm leading-relaxed">
+              Acesse sua conta para continuar gerenciando sua rotina
+              veterinária.
             </p>
-          </div>
+          </header>
 
           {erro && (
-            <div className="mb-5 flex items-center gap-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="mb-5 flex items-start gap-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-3"
+            >
               <svg
                 viewBox="0 0 20 20"
                 fill="currentColor"
-                className="w-4 h-4 shrink-0"
+                className="w-5 h-5 shrink-0 mt-0.5"
+                aria-hidden="true"
               >
                 <path
                   fillRule="evenodd"
                   d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
                 />
               </svg>
 
-              <span>{erro}</span>
+              <p className="text-sm leading-relaxed">{erro}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* E-mail */}
+          {mensagem && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="mb-5 flex items-start gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="w-5 h-5 shrink-0 mt-0.5"
+                aria-hidden="true"
+              >
+                <path d="m4 10 4 4 8-8" />
+              </svg>
+
+              <p className="text-sm leading-relaxed">{mensagem}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-[#0C1A1A] mb-1.5">
+              <label
+                htmlFor="email"
+                className="block text-sm font-semibold text-[#0C1A1A] mb-2"
+              >
                 E-mail
               </label>
 
               <input
+                id="email"
+                name="email"
                 type="email"
+                autoComplete="email"
+                inputMode="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="ana.souza@clinica.com.br"
-                className="w-full bg-white border border-[#D8D5CE] rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/30 focus:border-[#0C4A45] transition-all"
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setErro('')
+                  setMensagem('')
+                }}
+                placeholder="voce@clinica.com.br"
+                required
+                disabled={loading}
+                className="w-full bg-white border border-[#D8D5CE] rounded-xl px-4 py-3.5 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] outline-none focus:ring-2 focus:ring-[#0C4A45]/20 focus:border-[#0C4A45] transition-colors disabled:opacity-60"
               />
             </div>
 
-            {/* Senha */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-[#0C1A1A]">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label
+                  htmlFor="senha"
+                  className="block text-sm font-semibold text-[#0C1A1A]"
+                >
                   Senha
                 </label>
 
-                <a
-                  href="#"
-                  onClick={(e) => e.preventDefault()}
-                  className="text-xs text-[#0C4A45] hover:underline font-medium"
+                <button
+                  type="button"
+                  onClick={handleRecuperarSenha}
+                  disabled={loading || recuperandoSenha}
+                  className="text-xs font-semibold text-[#0C4A45] hover:underline disabled:opacity-50"
                 >
-                  Esqueci a senha
-                </a>
+                  {recuperandoSenha
+                    ? 'Enviando...'
+                    : 'Esqueci a senha'}
+                </button>
               </div>
 
               <div className="relative">
                 <input
+                  id="senha"
+                  name="senha"
                   type={mostrarSenha ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-white border border-[#D8D5CE] rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/30 focus:border-[#0C4A45] transition-all pr-11"
+                  onChange={(e) => {
+                    setSenha(e.target.value)
+                    setErro('')
+                  }}
+                  placeholder="Digite sua senha"
+                  required
+                  disabled={loading}
+                  className="w-full bg-white border border-[#D8D5CE] rounded-xl px-4 py-3.5 pr-12 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] outline-none focus:ring-2 focus:ring-[#0C4A45]/20 focus:border-[#0C4A45] transition-colors disabled:opacity-60"
                 />
 
                 <button
                   type="button"
-                  onClick={() => setMostrarSenha(!mostrarSenha)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                  onClick={() => setMostrarSenha((valor) => !valor)}
+                  aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                  aria-pressed={mostrarSenha}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[#6B7280] hover:text-[#0C4A45] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/30"
                 >
                   {mostrarSenha ? (
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
-                      className="w-4 h-4"
+                      strokeWidth="1.8"
+                      className="w-5 h-5"
+                      aria-hidden="true"
                     >
-                      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
+                      <path d="M3 3l18 18" />
+                      <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+                      <path d="M9.9 5.2A10.8 10.8 0 0112 5c7 0 10 7 10 7a16 16 0 01-3.1 4.2" />
+                      <path d="M6.2 6.2C3.5 8 2 12 2 12s3 7 10 7a10.8 10.8 0 004.1-.8" />
                     </svg>
                   ) : (
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
-                      className="w-4 h-4"
+                      strokeWidth="1.8"
+                      className="w-5 h-5"
+                      aria-hidden="true"
                     >
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
                       <circle cx="12" cy="12" r="3" />
                     </svg>
                   )}
@@ -324,34 +332,18 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Lembrar */}
-            <div className="flex items-center gap-2">
-              <input
-                id="lembrar"
-                type="checkbox"
-                className="w-4 h-4 rounded border-[#D8D5CE] accent-[#0C4A45] cursor-pointer"
-              />
-
-              <label
-                htmlFor="lembrar"
-                className="text-sm text-[#6B7280] cursor-pointer select-none"
-              >
-                Manter conectado por 30 dias
-              </label>
-            </div>
-
-            {/* Botão */}
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-[#0C4A45] text-white font-semibold py-3 rounded-[10px] hover:bg-[#0a3d38] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+              disabled={loading || recuperandoSenha}
+              className="w-full min-h-[50px] bg-[#0C4A45] text-white font-semibold py-3.5 px-4 rounded-xl hover:bg-[#0A3D38] focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/40 focus:ring-offset-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
             >
               {loading ? (
                 <>
                   <svg
-                    className="animate-spin w-4 h-4"
+                    className="animate-spin w-5 h-5"
                     viewBox="0 0 24 24"
                     fill="none"
+                    aria-hidden="true"
                   >
                     <circle
                       className="opacity-25"
@@ -361,15 +353,16 @@ export default function Login() {
                       stroke="currentColor"
                       strokeWidth="4"
                     />
-
                     <path
                       className="opacity-75"
                       fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      d="M4 12a8 8 0 018-8"
+                      stroke="currentColor"
+                      strokeWidth="4"
                     />
                   </svg>
 
-                  Entrando…
+                  Entrando na conta...
                 </>
               ) : (
                 'Entrar na conta'
@@ -377,9 +370,21 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-[#EAE8E3] text-center">
-            <p className="text-xs text-[#9CA3AF]">
-              Ao entrar, você concorda com nossos{' '}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-[#6B7280]">
+              Ainda não tem conta?{' '}
+              <Link
+                to="/cadastro"
+                className="font-semibold text-[#0C4A45] hover:underline"
+              >
+                Criar conta
+              </Link>
+            </p>
+          </div>
+
+          <footer className="mt-9 pt-6 border-t border-[#EAE8E3] text-center">
+            <p className="text-xs text-[#9CA3AF] leading-relaxed">
+              Ao entrar, você concorda com os nossos{' '}
               <Link
                 to="/termos"
                 className="text-[#0C4A45] hover:underline"
@@ -395,9 +400,9 @@ export default function Login() {
               </Link>
               .
             </p>
-          </div>
+          </footer>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }

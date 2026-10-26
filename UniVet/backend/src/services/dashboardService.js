@@ -204,11 +204,8 @@ async function buscarDashboard(estabelecimentoId) {
   return {
     indicadores: {
       consultasHoje: consultasHoje.length,
-
       animais: animaisResult.count || 0,
-
       tutores: tutoresResult.count || 0,
-
       vacinasPendentes:
         (vacinasVencidasResult.count || 0) +
         (vacinasHojeResult.count || 0)
@@ -226,30 +223,19 @@ async function buscarDashboard(estabelecimentoId) {
     vacinas: {
       vencidas:
         vacinasVencidasResult.count || 0,
-
       hoje:
         vacinasHojeResult.count || 0,
-
       total:
         (vacinasVencidasResult.count || 0) +
         (vacinasHojeResult.count || 0)
     },
 
     resumo: {
-      emAtendimento:
-        emAtendimento.length,
-
-      agendadas:
-        agendadas.length,
-
-      realizadas:
-        consultasRealizadas.length,
-
-      naoCompareceram:
-        naoCompareceram.length,
-
-      atrasadas:
-        consultasAtrasadas.length
+      emAtendimento: emAtendimento.length,
+      agendadas: agendadas.length,
+      realizadas: consultasRealizadas.length,
+      naoCompareceram: naoCompareceram.length,
+      atrasadas: consultasAtrasadas.length
     }
   }
 }

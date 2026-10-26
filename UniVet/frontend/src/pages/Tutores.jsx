@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-
 import { supabase } from '../services/supabase'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -343,9 +342,7 @@ function DetalhesTutor({
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-full bg-[#E8F4F0] flex items-center justify-center text-[#0C4A45] font-semibold text-lg">
-              {tutor.nome_completo
-                ?.charAt(0)
-                .toUpperCase() || 'T'}
+              {tutor.nome_completo?.charAt(0).toUpperCase() || 'T'}
             </div>
 
             <div>
@@ -368,10 +365,7 @@ function DetalhesTutor({
 
             <div className="border border-[#EAE8E3] rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-[#EAE8E3]">
-                <p className="text-xs text-gray-400 mb-1">
-                  Telefone
-                </p>
-
+                <p className="text-xs text-gray-400 mb-1">Telefone</p>
                 <p className="text-sm text-[#303735]">
                   {tutor.telefone
                     ? formatarTelefone(tutor.telefone)
@@ -380,20 +374,14 @@ function DetalhesTutor({
               </div>
 
               <div className="px-4 py-3 border-b border-[#EAE8E3]">
-                <p className="text-xs text-gray-400 mb-1">
-                  E-mail
-                </p>
-
+                <p className="text-xs text-gray-400 mb-1">E-mail</p>
                 <p className="text-sm text-[#303735] break-all">
                   {tutor.email || 'Não informado'}
                 </p>
               </div>
 
               <div className="px-4 py-3">
-                <p className="text-xs text-gray-400 mb-1">
-                  Endereço
-                </p>
-
+                <p className="text-xs text-gray-400 mb-1">Endereço</p>
                 <p className="text-sm text-[#303735]">
                   {tutor.endereco || 'Não informado'}
                 </p>
@@ -408,10 +396,7 @@ function DetalhesTutor({
               </p>
 
               <span className="text-xs text-gray-400">
-                {animais.length}{' '}
-                {animais.length === 1
-                  ? 'animal'
-                  : 'animais'}
+                {animais.length} {animais.length === 1 ? 'animal' : 'animais'}
               </span>
             </div>
 
@@ -516,11 +501,26 @@ export default function Tutores() {
       },
     })
 
-    const dados = await resposta.json()
+    const texto = await resposta.text()
+    let dados = {}
+
+    if (texto) {
+      try {
+        dados = JSON.parse(texto)
+      } catch {
+        console.error('Resposta inválida do servidor:', texto)
+
+        throw new Error(
+          `O servidor retornou uma resposta inválida (HTTP ${resposta.status}).`
+        )
+      }
+    }
 
     if (!resposta.ok) {
       throw new Error(
-        dados.mensagem || 'Erro ao realizar a operação.'
+        dados.mensagem ||
+          dados.erro ||
+          `Erro ao realizar a operação (HTTP ${resposta.status}).`
       )
     }
 
@@ -534,7 +534,7 @@ export default function Tutores() {
 
       const data = await requisicaoAPI('/api/tutores')
 
-      setTutores(data || [])
+      setTutores(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Erro ao carregar tutores:', error)
 
@@ -554,18 +554,10 @@ export default function Tutores() {
 
       const dadosTutor = {
         nome_completo: dados.nome.trim(),
-
-        cpf:
-          somenteNumeros(dados.cpf) || null,
-
-        telefone:
-          somenteNumeros(dados.telefone),
-
-        email:
-          dados.email.trim().toLowerCase() || null,
-
-        endereco:
-          dados.endereco.trim() || null,
+        cpf: somenteNumeros(dados.cpf) || null,
+        telefone: somenteNumeros(dados.telefone),
+        email: dados.email.trim().toLowerCase() || null,
+        endereco: dados.endereco.trim() || null,
       }
 
       const editando = modal !== 'novo'
@@ -576,13 +568,10 @@ export default function Tutores() {
           body: JSON.stringify(dadosTutor),
         })
       } else {
-        await requisicaoAPI(
-          `/api/tutores/${modal.id}`,
-          {
-            method: 'PUT',
-            body: JSON.stringify(dadosTutor),
-          }
-        )
+        await requisicaoAPI(`/api/tutores/${modal.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(dadosTutor),
+        })
       }
 
       await carregarTutores()
@@ -603,10 +592,7 @@ export default function Tutores() {
         sucesso: true,
       }
     } catch (error) {
-      console.error(
-        'Erro ao salvar tutor:',
-        error
-      )
+      console.error('Erro ao salvar tutor:', error)
 
       return {
         erro:
@@ -618,39 +604,24 @@ export default function Tutores() {
     }
   }
 
-  const termo = busca
-    .trim()
-    .toLowerCase()
+  const termo = busca.trim().toLowerCase()
 
-  const tutoresFiltrados =
-    tutores.filter(tutor => {
-      if (!termo) return true
+  const tutoresFiltrados = tutores.filter(tutor => {
+    if (!termo) return true
 
-      return (
-        tutor.nome_completo
-          ?.toLowerCase()
-          .includes(termo) ||
-        tutor.email
-          ?.toLowerCase()
-          .includes(termo) ||
-        tutor.telefone
-          ?.toLowerCase()
-          .includes(termo) ||
-        tutor.cpf
-          ?.toLowerCase()
-          .includes(termo)
-      )
-    })
+    return (
+      tutor.nome_completo?.toLowerCase().includes(termo) ||
+      tutor.email?.toLowerCase().includes(termo) ||
+      tutor.telefone?.toLowerCase().includes(termo) ||
+      tutor.cpf?.toLowerCase().includes(termo)
+    )
+  })
 
   return (
     <div className="p-6 max-w-[1200px] mx-auto">
       {modal !== null && (
         <ModalTutor
-          tutor={
-            modal === 'novo'
-              ? null
-              : modal
-          }
+          tutor={modal === 'novo' ? null : modal}
           fechar={() => {
             if (!salvando) {
               setModal(null)
@@ -683,9 +654,7 @@ export default function Tutores() {
               Sucesso
             </p>
 
-            <p className="text-sm text-gray-500">
-              {sucesso}
-            </p>
+            <p className="text-sm text-gray-500">{sucesso}</p>
           </div>
         </div>
       )}
@@ -708,20 +677,14 @@ export default function Tutores() {
           onClick={() => setModal('novo')}
           className="inline-flex items-center justify-center gap-2 bg-[#0C4A45] text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-[#0A3F3B] transition-colors"
         >
-          <span className="text-lg leading-none">
-            +
-          </span>
-
+          <span className="text-lg leading-none">+</span>
           Novo tutor
         </button>
       </div>
 
       {erro && (
         <div className="mb-5 flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-700">
-          <span className="font-semibold">
-            !
-          </span>
-
+          <span className="font-semibold">!</span>
           <p>{erro}</p>
         </div>
       )}
@@ -735,20 +698,13 @@ export default function Tutores() {
             stroke="currentColor"
             strokeWidth="2"
           >
-            <circle
-              cx="11"
-              cy="11"
-              r="7"
-            />
-
+            <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.5-3.5" />
           </svg>
 
           <input
             value={busca}
-            onChange={e =>
-              setBusca(e.target.value)
-            }
+            onChange={e => setBusca(e.target.value)}
             placeholder="Buscar por nome, CPF, e-mail ou telefone..."
             className="w-full bg-white border border-[#D8D5CE] rounded-xl pl-11 pr-11 py-3 text-sm outline-none transition-all focus:border-[#0C4A45] focus:ring-2 focus:ring-[#0C4A45]/10"
           />
@@ -786,12 +742,7 @@ export default function Tutores() {
                 strokeWidth="1.8"
               >
                 <path d="M20 21a8 8 0 0 0-16 0" />
-
-                <circle
-                  cx="12"
-                  cy="7"
-                  r="4"
-                />
+                <circle cx="12" cy="7" r="4" />
               </svg>
             </div>
 
@@ -809,15 +760,10 @@ export default function Tutores() {
 
             {!busca && (
               <button
-                onClick={() =>
-                  setModal('novo')
-                }
+                onClick={() => setModal('novo')}
                 className="mt-5 inline-flex items-center gap-2 bg-[#0C4A45] text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-[#0A3F3B] transition-colors"
               >
-                <span className="text-lg leading-none">
-                  +
-                </span>
-
+                <span className="text-lg leading-none">+</span>
                 Novo tutor
               </button>
             )}
@@ -848,13 +794,10 @@ export default function Tutores() {
               <tbody>
                 {tutoresFiltrados.map(tutor => {
                   const quantidadeAnimais =
-                    tutor.animal_tutores
-                      ?.length || 0
+                    tutor.animal_tutores?.length || 0
 
                   const inicial =
-                    tutor.nome_completo
-                      ?.charAt(0)
-                      .toUpperCase() || 'T'
+                    tutor.nome_completo?.charAt(0).toUpperCase() || 'T'
 
                   return (
                     <tr
@@ -874,9 +817,7 @@ export default function Tutores() {
 
                             <p className="text-xs text-gray-400 mt-0.5">
                               {tutor.cpf
-                                ? formatarCPF(
-                                    tutor.cpf
-                                  )
+                                ? formatarCPF(tutor.cpf)
                                 : 'CPF não informado'}
                             </p>
                           </div>
@@ -886,15 +827,12 @@ export default function Tutores() {
                       <td className="px-5 py-4">
                         <p className="text-[#303735]">
                           {tutor.telefone
-                            ? formatarTelefone(
-                                tutor.telefone
-                              )
+                            ? formatarTelefone(tutor.telefone)
                             : 'Telefone não informado'}
                         </p>
 
                         <p className="text-xs text-gray-400 mt-1 truncate max-w-[250px]">
-                          {tutor.email ||
-                            'E-mail não informado'}
+                          {tutor.email || 'E-mail não informado'}
                         </p>
                       </td>
 
@@ -921,18 +859,14 @@ export default function Tutores() {
                       <td className="px-5 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
                           <button
-                            onClick={() =>
-                              setDetalhes(tutor)
-                            }
+                            onClick={() => setDetalhes(tutor)}
                             className="inline-flex items-center gap-1.5 border border-[#D8D5CE] bg-white px-3 py-2 rounded-lg text-sm font-medium text-[#39413F] hover:bg-[#F5F4F0] transition-colors"
                           >
                             Detalhes
                           </button>
 
                           <button
-                            onClick={() =>
-                              setModal(tutor)
-                            }
+                            onClick={() => setModal(tutor)}
                             className="inline-flex items-center gap-1.5 border border-[#D8D5CE] bg-white px-3 py-2 rounded-lg text-sm font-medium text-[#0C4A45] hover:bg-[#F5F4F0] transition-colors"
                           >
                             Editar
@@ -962,8 +896,7 @@ export default function Tutores() {
         tutoresFiltrados.length > 0 &&
         busca && (
           <p className="text-xs text-gray-400 mt-3">
-            Mostrando {tutoresFiltrados.length}{' '}
-            de {tutores.length} tutores.
+            Mostrando {tutoresFiltrados.length} de {tutores.length} tutores.
           </p>
         )}
     </div>

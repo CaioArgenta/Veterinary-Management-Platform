@@ -1,4 +1,10 @@
-import { useState } from 'react'
+
+import { useCallback, useEffect, useState } from 'react'
+import { supabase } from '../services/supabase'
+
+const API_URL = import.meta.env.VITE_API_URL || ''
+
+const ESPECIES = ['Cão', 'Gato', 'Ave', 'Roedor', 'Réptil', 'Outro']
 
 const ESPECIE_ICON = {
   Cão: '🐕',
@@ -6,1019 +12,1192 @@ const ESPECIE_ICON = {
   Ave: '🦜',
   Réptil: '🦎',
   Outro: '🐾',
+  CANINO: '🐕',
+  FELINO: '🐈',
+  AVE: '🦜',
+  REPTIL: '🦎',
+  OUTRO: '🐾',
 }
 
-const ESPECIES = ['Cão', 'Gato', 'Ave', 'Réptil', 'Outro']
-const SEXOS = ['Macho', 'Fêmea']
-
-const ANIMAIS_INICIAIS = [
-  {
-    id: 1,
-    nome: 'Thor',
-    especie: 'Cão',
-    raca: 'Golden Retriever',
-    sexo: 'Macho',
-    nascimento: '2020-03-15',
-    peso: 28,
-    tutorNome: 'João Silva',
-    cor: 'Dourado',
-    castrado: true,
-    microchip: '985141000123456',
-    alergias: 'Dipirona',
-    restricoes: '',
-    cuidadosEspeciais: 'Cuidado com articulações',
-    observacoes: 'Animal dócil e tranquilo.',
-    alerta: 'Sensível durante aplicação de vacinas.',
-  },
-  {
-    id: 2,
-    nome: 'Luna',
-    especie: 'Gato',
-    raca: 'Siamês',
-    sexo: 'Fêmea',
-    nascimento: '2022-07-10',
-    peso: 4.2,
-    tutorNome: 'Maria Santos',
-    cor: 'Creme e marrom',
-    castrado: true,
-    microchip: '',
-    alergias: '',
-    restricoes: 'Não pode receber leite',
-    cuidadosEspeciais: 'Evitar ambientes muito quentes',
-    observacoes: '',
-    alerta: '',
-  },
-  {
-    id: 3,
-    nome: 'Mel',
-    especie: 'Cão',
-    raca: 'Shih-tzu',
-    sexo: 'Fêmea',
-    nascimento: '2021-11-22',
-    peso: 5.8,
-    tutorNome: 'Carlos Oliveira',
-    cor: 'Branco e caramelo',
-    castrado: false,
-    microchip: '',
-    alergias: 'Amoxicilina',
-    restricoes: '',
-    cuidadosEspeciais: 'Braquicefálico — cuidado com anestesia',
-    observacoes: '',
-    alerta: 'Comportamento agitado em consultas.',
-  },
+const SEXOS = [
+  'Macho',
+  'Fêmea',
+  'Macho castrado',
+  'Fêmea castrada',
+  'Indefinido',
 ]
 
-const TUTORES = [
-  { id: 1, nome: 'João Silva' },
-  { id: 2, nome: 'Maria Santos' },
-  { id: 3, nome: 'Carlos Oliveira' },
-]
+function normalizarEspecie(especie) {
+  const valor = String(especie || '').trim().toLowerCase()
 
-function calcIdade(nascimento) {
-  if (!nascimento) return '-'
-
-  const nasc = new Date(nascimento)
-  const hoje = new Date()
-
-  const meses =
-    (hoje.getFullYear() - nasc.getFullYear()) * 12 +
-    (hoje.getMonth() - nasc.getMonth())
-
-  if (meses < 12) {
-    return `${meses} meses`
+  const especies = {
+    cão: 'Cão',
+    cao: 'Cão',
+    canino: 'Cão',
+    gato: 'Gato',
+    felino: 'Gato',
+    ave: 'Ave',
+    réptil: 'Réptil',
+    reptil: 'Réptil',
+    outro: 'Outro',
   }
 
-  const anos = Math.floor(meses / 12)
-  const m = meses % 12
-
-  return m > 0 ? `${anos}a ${m}m` : `${anos} anos`
+  return especies[valor] || especie || 'Outro'
 }
 
-function AnimalDetail({ animal, onClose }) {
-  const [tab, setTab] = useState('dados')
+
+function converterEspecieParaBanco(especie) {
+  const especies = {
+    'Cão': 'CANINO',
+    'Gato': 'FELINO',
+    'Ave': 'AVE',
+    'Roedor': 'ROEDOR',
+    'Réptil': 'REPTIL',
+    'Outro': 'OUTRO',
+  }
+
+  return especies[especie] || especie
+}
+
+
+function converterSexoParaBanco(sexo) {
+  const sexos = {
+    'Macho': 'MACHO',
+    'Fêmea': 'FEMEA',
+    'Macho castrado': 'CASTRADO_MACHO',
+    'Fêmea castrada': 'CASTRADA_FEMEA',
+    'Indefinido': 'INDEFINIDO',
+  }
+
+  return sexos[sexo] || sexo
+}
+
+
+function normalizarSexo(sexo) {
+  const valor = String(sexo || '').trim().toLowerCase()
+
+  if (valor === 'macho') return 'Macho'
+  if (valor === 'fêmea' || valor === 'femea') return 'Fêmea'
+
+  return sexo || ''
+}
+
+async function obterToken() {
+  const { data, error } = await supabase.auth.getSession()
+
+  if (error) throw error
+
+  const token = data.session?.access_token
+
+  if (!token) {
+    throw new Error('Sua sessão expirou. Entre novamente no UniVet.')
+  }
+
+  return token
+}
+
+async function requisicaoAPI(endpoint, opcoes = {}) {
+  const token = await obterToken()
+
+  const resposta = await fetch(`${API_URL}/api/${endpoint}`, {
+    ...opcoes,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(opcoes.body ? { 'Content-Type': 'application/json' } : {}),
+      ...opcoes.headers,
+    },
+  })
+
+  const texto = await resposta.text()
+  let resultado = {}
+
+  if (texto) {
+    try {
+      resultado = JSON.parse(texto)
+    } catch {
+      throw new Error(
+        `Resposta inválida da API. Verifique a rota e o servidor (HTTP ${resposta.status}).`
+      )
+    }
+  }
+
+  if (!resposta.ok) {
+    throw new Error(
+      resultado.mensagem ||
+        resultado.erro ||
+        resultado.message ||
+        `Erro na requisição (HTTP ${resposta.status}).`
+    )
+  }
+
+  return resultado
+}
+
+function extrairLista(resultado, chave) {
+  if (Array.isArray(resultado)) return resultado
+  if (Array.isArray(resultado?.dados)) return resultado.dados
+  if (Array.isArray(resultado?.data)) return resultado.data
+  if (Array.isArray(resultado?.[chave])) return resultado[chave]
+  return []
+}
+
+function extrairRegistro(resultado) {
+  return resultado?.dados || resultado?.data || resultado?.animal || resultado
+}
+
+function converterAnimal(animal) {
+  const relacoes = animal.animal_tutores || []
+  const relacaoPrincipal =
+    relacoes.find((relacao) => relacao.principal) || relacoes[0]
+
+  const tutor = animal.tutor || relacaoPrincipal?.tutores
+
+  return {
+    id: animal.id,
+    nome: animal.nome || '',
+    especie: normalizarEspecie(animal.especie),
+    raca: animal.raca || '',
+    sexo: normalizarSexo(animal.sexo),
+    nascimento: animal.data_nascimento || '',
+    peso: animal.peso ?? '',
+    microchip: animal.microchip || '',
+    observacoes: animal.observacoes || '',
+    tutorId: tutor?.id || relacaoPrincipal?.tutor_id || '',
+    tutorNome: tutor?.nome_completo || 'Sem tutor',
+  }
+}
+
+function calcularIdade(nascimento) {
+  if (!nascimento) return 'Não informada'
+
+  const data = new Date(`${nascimento}T12:00:00`)
+
+  if (Number.isNaN(data.getTime())) return 'Não informada'
+
+  const hoje = new Date()
+
+  if (data > hoje) return 'Data inválida'
+
+  let anos = hoje.getFullYear() - data.getFullYear()
+  let meses = hoje.getMonth() - data.getMonth()
+
+  if (hoje.getDate() < data.getDate()) meses--
+
+  if (meses < 0) {
+    anos--
+    meses += 12
+  }
+
+  if (anos === 0 && meses === 0) return 'Menos de 1 mês'
+  if (anos === 0) return `${meses} ${meses === 1 ? 'mês' : 'meses'}`
+  if (meses === 0) return `${anos} ${anos === 1 ? 'ano' : 'anos'}`
+
+  return `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`
+}
+
+function formatarData(data) {
+  if (!data) return 'Não informada'
+
+  const valor = new Date(`${data}T12:00:00`)
+
+  if (Number.isNaN(valor.getTime())) return 'Não informada'
+
+  return valor.toLocaleDateString('pt-BR')
+}
+
+function mensagemErro(error) {
+  return error?.message || 'Ocorreu um erro inesperado.'
+}
+
+function Icone({ nome, tamanho = 18, className = '' }) {
+  const caminhos = {
+    search: (
+      <>
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-4-4" />
+      </>
+    ),
+    plus: (
+      <>
+        <path d="M12 5v14" />
+        <path d="M5 12h14" />
+      </>
+    ),
+    paw: (
+      <>
+        <ellipse cx="12" cy="16" rx="5" ry="4" />
+        <ellipse cx="5.5" cy="10" rx="2" ry="3" />
+        <ellipse cx="10" cy="6.5" rx="2" ry="3" />
+        <ellipse cx="15" cy="6.5" rx="2" ry="3" />
+        <ellipse cx="18.5" cy="10" rx="2" ry="3" />
+      </>
+    ),
+    close: (
+      <>
+        <path d="m18 6-12 12" />
+        <path d="m6 6 12 12" />
+      </>
+    ),
+    chevron: <path d="m9 18 6-6-6-6" />,
+    calendar: (
+      <>
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M16 3v4M8 3v4M3 11h18" />
+      </>
+    ),
+    user: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+      </>
+    ),
+    edit: (
+      <>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L9 17l-4 1 1-4Z" />
+      </>
+    ),
+    trash: (
+      <>
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="m19 6-1 14H6L5 6" />
+        <path d="M10 11v5M14 11v5" />
+      </>
+    ),
+    weight: (
+      <>
+        <path d="M5 8h14l2 12H3L5 8Z" />
+        <path d="M9 8a3 3 0 0 1 6 0" />
+      </>
+    ),
+    info: (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 16v-4M12 8h.01" />
+      </>
+    ),
+  }
+
+  return (
+    <svg
+      width={tamanho}
+      height={tamanho}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {caminhos[nome] || caminhos.info}
+    </svg>
+  )
+}
+
+function Campo({ label, children, className = '' }) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1.5 block text-sm font-medium text-[#354341]">
+        {label}
+      </span>
+      {children}
+    </label>
+  )
+}
+
+const classeCampo =
+  'w-full rounded-xl border border-[#E4E7E2] bg-white px-3.5 py-2.5 text-sm text-[#20302E] outline-none transition focus:border-[#0C4A45] focus:ring-2 focus:ring-[#0C4A45]/10'
+
+function Modal({ titulo, descricao, onClose, children, largura = 'max-w-2xl' }) {
+  useEffect(() => {
+    function fecharComEscape(event) {
+      if (event.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('keydown', fecharComEscape)
+
+    return () => window.removeEventListener('keydown', fecharComEscape)
+  }, [onClose])
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 z-50 flex items-center justify-end p-4"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#102321]/45 p-4 backdrop-blur-[2px]"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
     >
-      <div
-        className="bg-white rounded-2xl w-full max-w-lg h-full max-h-[92vh] overflow-y-auto shadow-2xl"
-        onClick={e => e.stopPropagation()}
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label={titulo}
+        className={`flex max-h-[92vh] w-full ${largura} flex-col overflow-hidden rounded-2xl bg-[#FDFCF9] shadow-2xl`}
       >
-        <div className="sticky top-0 bg-white border-b border-[#EAE8E3] px-6 pt-6 pb-0">
-
-          <div className="flex items-start justify-between mb-4">
-
-            <div className="flex items-center gap-3">
-
-              <div className="w-12 h-12 rounded-2xl bg-[#F7F5F0] flex items-center justify-center text-2xl">
-                {ESPECIE_ICON[animal.especie]}
-              </div>
-
-              <div>
-
-                <div className="flex items-center gap-2">
-
-                  <h2 className="text-xl font-semibold text-[#0C1A1A]">
-                    {animal.nome}
-                  </h2>
-
-                  {animal.alerta && (
-                    <span
-                      className="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center"
-                      title={animal.alerta}
-                    >
-                      <svg
-                        viewBox="0 0 12 12"
-                        fill="white"
-                        className="w-3 h-3"
-                      >
-                        <path d="M6 2L1 10h10L6 2zm0 4v2m0 1.5v.5" />
-                      </svg>
-                    </span>
-                  )}
-
-                </div>
-
-                <p className="text-sm text-[#6B7280]">
-                  {animal.raca} · {animal.especie} · {animal.sexo}
-                </p>
-
-              </div>
-
-            </div>
-
-            <button
-              onClick={onClose}
-              className="text-[#9CA3AF] hover:text-[#0C1A1A] mt-1"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="w-5 h-5"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-
+        <header className="flex items-start justify-between border-b border-[#EAE8E3] px-6 py-5">
+          <div>
+            <h2 className="text-lg font-semibold text-[#15312E]">{titulo}</h2>
+            {descricao && (
+              <p className="mt-1 text-sm text-[#7A807E]">{descricao}</p>
+            )}
           </div>
-
-          {animal.alerta && (
-            <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-800">
-
-              <svg
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                className="w-4 h-4 shrink-0 mt-0.5 text-amber-500"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92z"
-                />
-              </svg>
-
-              <span>
-                <strong>Atenção:</strong> {animal.alerta}
-              </span>
-
-            </div>
-          )}
-
-          <div className="flex gap-1">
-
-            {['dados', 'saude'].map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                  tab === t
-                    ? 'bg-[#F7F5F0] text-[#0C4A45]'
-                    : 'text-[#9CA3AF] hover:text-[#0C1A1A]'
-                }`}
-              >
-                {t === 'dados' ? 'Dados gerais' : 'Saúde'}
-              </button>
-            ))}
-
-          </div>
-
-        </div>
-
-        <div className="p-6 space-y-4">
-
-          {tab === 'dados' && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-
-                <div className="bg-[#F7F5F0] rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-[#9CA3AF] uppercase tracking-wider mb-1">
-                    Nascimento
-                  </p>
-                  <p className="text-sm font-semibold text-[#0C1A1A]">
-                    {animal.nascimento}
-                  </p>
-                </div>
-
-                <div className="bg-[#F7F5F0] rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-[#9CA3AF] uppercase tracking-wider mb-1">
-                    Idade
-                  </p>
-                  <p className="text-sm font-semibold text-[#0C1A1A]">
-                    {calcIdade(animal.nascimento)}
-                  </p>
-                </div>
-
-                <div className="bg-[#F7F5F0] rounded-xl p-3 text-center">
-                  <p className="text-[10px] text-[#9CA3AF] uppercase tracking-wider mb-1">
-                    Peso atual
-                  </p>
-                  <p className="text-sm font-semibold text-[#0C1A1A]">
-                    {animal.peso ? `${animal.peso} kg` : '-'}
-                  </p>
-                </div>
-
-              </div>
-
-              <InfoRow
-                label="Tutor responsável"
-                value={animal.tutorNome}
-              />
-
-              <InfoRow
-                label="Cor / Pelagem"
-                value={animal.cor || '—'}
-              />
-
-              <InfoRow
-                label="Castrado"
-                value={animal.castrado ? 'Sim' : 'Não'}
-              />
-
-              {animal.microchip && (
-                <InfoRow
-                  label="Microchip"
-                  value={animal.microchip}
-                  mono
-                />
-              )}
-
-              {animal.observacoes && (
-                <InfoRow
-                  label="Observações"
-                  value={animal.observacoes}
-                />
-              )}
-            </>
-          )}
-
-          {tab === 'saude' && (
-            <>
-              <SaudeField
-                label="Alergias"
-                value={animal.alergias}
-                color="rose"
-              />
-
-              <SaudeField
-                label="Restrições"
-                value={animal.restricoes}
-                color="amber"
-              />
-
-              <SaudeField
-                label="Cuidados especiais"
-                value={animal.cuidadosEspeciais}
-                color="blue"
-              />
-            </>
-          )}
-
-        </div>
-
-        <div className="flex gap-3 p-6 border-t border-[#EAE8E3] sticky bottom-0 bg-white">
 
           <button
+            type="button"
             onClick={onClose}
-            className="flex-1 border border-[#D8D5CE] text-[#6B7280] font-medium py-2.5 rounded-[10px] hover:bg-[#F7F5F0] text-sm"
+            aria-label="Fechar"
+            className="rounded-lg p-2 text-[#65716E] transition hover:bg-[#F0EFE9]"
           >
-            Fechar
+            <Icone nome="close" />
           </button>
+        </header>
 
-          <button
-            className="flex-1 bg-[#0C4A45] text-white font-semibold py-2.5 rounded-[10px] hover:bg-[#0a3d38] text-sm"
-          >
-            Editar ficha
-          </button>
-
-        </div>
-
-      </div>
+        <div className="overflow-y-auto px-6 py-5">{children}</div>
+      </section>
     </div>
   )
 }
 
-function InfoRow({ label, value, mono = false }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2 border-b border-[#F3F1EC] last:border-0">
+function NovoAnimalModal({
+  onClose,
+  onSalvar,
+  tutores,
+  salvando,
+  animalInicial = null,
+}) {
+  const editando = Boolean(animalInicial)
 
-      <span className="text-xs text-[#9CA3AF] shrink-0 mt-0.5">
-        {label}
-      </span>
+  const [form, setForm] = useState(() => ({
+    nome: animalInicial?.nome || '',
+    especie: animalInicial?.especie || '',
+    raca: animalInicial?.raca || '',
+    sexo: animalInicial?.sexo || '',
+    nascimento: animalInicial?.nascimento || '',
+    peso: animalInicial?.peso ?? '',
+    microchip: animalInicial?.microchip || '',
+    tutorId: animalInicial?.tutorId || '',
+    observacoes: animalInicial?.observacoes || '',
+  }))
 
-      <span
-        className={`text-sm text-[#0C1A1A] text-right ${
-          mono ? 'font-mono text-xs' : ''
-        }`}
-      >
-        {value}
-      </span>
+  const [erroFormulario, setErroFormulario] = useState('')
 
-    </div>
-  )
-}
-
-function SaudeField({ label, value, color }) {
-
-  const colors = {
-    rose: 'bg-rose-50 border-rose-200 text-rose-800',
-    amber: 'bg-amber-50 border-amber-200 text-amber-800',
-    blue: 'bg-blue-50 border-blue-200 text-blue-800',
+  function alterar(campo, valor) {
+    setForm((atual) => ({ ...atual, [campo]: valor }))
   }
 
-  return (
-    <div>
+  async function cadastrar(event) {
+    event.preventDefault()
+    setErroFormulario('')
 
-      <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-        {label}
-      </label>
-
-      {value ? (
-        <div
-          className={`text-sm px-4 py-3 rounded-xl border ${colors[color]}`}
-        >
-          {value}
-        </div>
-      ) : (
-        <div className="text-sm px-4 py-3 rounded-xl border border-[#EAE8E3] text-[#9CA3AF]">
-          Não informado
-        </div>
-      )}
-
-    </div>
-  )
-}
-
-function NovoAnimalModal({ onClose, onSalvar }) {
-
-  const [form, setForm] = useState({
-    nome: '',
-    especie: '',
-    raca: '',
-    sexo: '',
-    nascimento: '',
-    cor: '',
-    peso: '',
-    castrado: '',
-    tutorId: '',
-    alergias: '',
-    restricoes: '',
-    cuidados: '',
-    observacoes: '',
-    alerta: '',
-  })
-
-  const set = (campo, valor) => {
-    setForm(prev => ({
-      ...prev,
-      [campo]: valor,
-    }))
-  }
-
-  const inputCls =
-    'w-full bg-white border border-[#D8D5CE] rounded-[10px] px-4 py-2.5 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/30 focus:border-[#0C4A45] transition-all'
-
-  function cadastrar() {
-
-    if (!form.nome || !form.especie || !form.sexo || !form.tutorId) {
-      alert('Preencha os campos obrigatórios.')
+    if (!form.nome.trim()) {
+      setErroFormulario('Informe o nome do animal.')
       return
     }
 
-    const tutor = TUTORES.find(
-      t => String(t.id) === String(form.tutorId)
-    )
-
-    const novoAnimal = {
-      id: Date.now(),
-      nome: form.nome,
-      especie: form.especie,
-      raca: form.raca,
-      sexo: form.sexo,
-      nascimento: form.nascimento,
-      peso: form.peso ? Number(form.peso) : null,
-      tutorNome: tutor ? tutor.nome : 'Sem tutor',
-      cor: form.cor,
-      castrado: form.castrado === 'sim',
-      microchip: '',
-      alergias: form.alergias,
-      restricoes: form.restricoes,
-      cuidadosEspeciais: form.cuidados,
-      observacoes: form.observacoes,
-      alerta: form.alerta,
+    if (!form.especie) {
+      setErroFormulario('Selecione a espécie.')
+      return
     }
 
-    onSalvar(novoAnimal)
+    if (!form.sexo) {
+      setErroFormulario('Selecione o sexo.')
+      return
+    }
+
+    if (form.peso !== '' && Number(form.peso) <= 0) {
+      setErroFormulario('O peso deve ser maior que zero.')
+      return
+    }
+
+    try {
+      await onSalvar({
+        ...form,
+        nome: form.nome.trim(),
+        raca: form.raca.trim(),
+        peso: form.peso === '' ? null : Number(form.peso),
+      })
+    } catch (error) {
+      setErroFormulario(mensagemErro(error))
+    }
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/30 z-50 flex items-center justify-end p-4"
-      onClick={onClose}
+    <Modal
+      titulo={editando ? 'Editar animal' : 'Cadastrar animal'}
+      descricao={
+        editando
+          ? 'Atualize as informações do paciente.'
+          : 'Preencha os dados para cadastrar um novo paciente.'
+      }
+      onClose={onClose}
     >
+      <form onSubmit={cadastrar} className="space-y-5">
+        <div className="rounded-xl bg-[#F1F5F0] p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#0C4A45]">
+            <Icone nome="paw" />
+            Dados do animal
+          </div>
 
-      <div
-        className="bg-white rounded-2xl w-full max-w-lg h-full max-h-[92vh] overflow-y-auto shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-
-        <div className="flex items-center justify-between p-6 border-b border-[#EAE8E3] sticky top-0 bg-white z-10">
-
-          <h2 className="font-semibold text-[#0C1A1A]">
-            Novo animal
-          </h2>
-
-          <button
-            onClick={onClose}
-            className="text-[#9CA3AF] hover:text-[#0C1A1A]"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="w-5 h-5"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-
-        </div>
-
-        <div className="p-6 space-y-4">
-
-          {/* Nome e espécie */}
-
-          <div className="grid grid-cols-2 gap-3">
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Nome *
-              </label>
-
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Campo label="Nome *" className="sm:col-span-2">
               <input
-                className={inputCls}
-                placeholder="Nome do animal"
+                autoFocus
+                className={classeCampo}
                 value={form.nome}
-                onChange={e => set('nome', e.target.value)}
+                onChange={(e) => alterar('nome', e.target.value)}
+                placeholder="Ex.: Thor"
+                maxLength={100}
+                required
               />
+            </Campo>
 
-            </div>
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Espécie *
-              </label>
-
+            <Campo label="Espécie *">
               <select
-                className={inputCls}
+                className={classeCampo}
                 value={form.especie}
-                onChange={e => set('especie', e.target.value)}
+                onChange={(e) => alterar('especie', e.target.value)}
+                required
               >
-
-                <option value="">
-                  Selecionar
-                </option>
-
-                {ESPECIES.map(especie => (
+                <option value="">Selecione</option>
+                {ESPECIES.map((especie) => (
                   <option key={especie} value={especie}>
                     {especie}
                   </option>
                 ))}
-
               </select>
+            </Campo>
 
-            </div>
-
-          </div>
-
-          {/* Raça e sexo */}
-
-          <div className="grid grid-cols-2 gap-3">
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Raça
-              </label>
-
+            <Campo label="Raça">
               <input
-                className={inputCls}
-                placeholder="Raça"
+                className={classeCampo}
                 value={form.raca}
-                onChange={e => set('raca', e.target.value)}
+                onChange={(e) => alterar('raca', e.target.value)}
+                placeholder="Ex.: Golden Retriever"
+                maxLength={100}
               />
+            </Campo>
 
-            </div>
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Sexo *
-              </label>
-
+            <Campo label="Sexo *">
               <select
-                className={inputCls}
+                className={classeCampo}
                 value={form.sexo}
-                onChange={e => set('sexo', e.target.value)}
+                onChange={(e) => alterar('sexo', e.target.value)}
+                required
               >
-
-                <option value="">
-                  Selecionar
-                </option>
-
-                {SEXOS.map(sexo => (
+                <option value="">Selecione</option>
+                {SEXOS.map((sexo) => (
                   <option key={sexo} value={sexo}>
                     {sexo}
                   </option>
                 ))}
-
               </select>
+            </Campo>
 
-            </div>
-
-          </div>
-
-          {/* Nascimento, peso e castrado */}
-
-          <div className="grid grid-cols-3 gap-3">
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Nascimento
-              </label>
-
+            <Campo label="Data de nascimento">
               <input
                 type="date"
-                className={inputCls}
+                className={classeCampo}
                 value={form.nascimento}
-                onChange={e => set('nascimento', e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => alterar('nascimento', e.target.value)}
               />
+            </Campo>
 
-            </div>
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Peso (kg)
-              </label>
-
+            <Campo label="Peso (kg)">
               <input
                 type="number"
-                step="0.1"
-                className={inputCls}
-                placeholder="0.0"
+                className={classeCampo}
                 value={form.peso}
-                onChange={e => set('peso', e.target.value)}
+                onChange={(e) => alterar('peso', e.target.value)}
+                placeholder="Ex.: 12,5"
+                min="0.01"
+                max="9999"
+                step="0.01"
               />
+            </Campo>
 
-            </div>
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Castrado
-              </label>
-
-              <select
-                className={inputCls}
-                value={form.castrado}
-                onChange={e => set('castrado', e.target.value)}
-              >
-
-                <option value="">
-                  —
-                </option>
-
-                <option value="sim">
-                  Sim
-                </option>
-
-                <option value="nao">
-                  Não
-                </option>
-
-              </select>
-
-            </div>
-
-          </div>
-
-          {/* Tutor */}
-
-          <div>
-
-            <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-              Tutor responsável *
-            </label>
-
-            <select
-              className={inputCls}
-              value={form.tutorId}
-              onChange={e => set('tutorId', e.target.value)}
-            >
-
-              <option value="">
-                Selecionar tutor
-              </option>
-
-              {TUTORES.map(tutor => (
-                <option
-                  key={tutor.id}
-                  value={tutor.id}
-                >
-                  {tutor.nome}
-                </option>
-              ))}
-
-            </select>
-
-          </div>
-
-          {/* Cor */}
-
-          <div>
-
-            <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-              Cor / Pelagem
-            </label>
-
-            <input
-              className={inputCls}
-              placeholder="Ex: Dourado, Preto e branco…"
-              value={form.cor}
-              onChange={e => set('cor', e.target.value)}
-            />
-
-          </div>
-
-          {/* Informações de saúde */}
-
-          <div className="bg-rose-50 rounded-xl p-4 space-y-3 border border-rose-100">
-
-            <p className="text-xs font-semibold text-rose-800">
-              Informações de saúde
-            </p>
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Alergias
-              </label>
-
+            <Campo label="Microchip">
               <input
-                className={inputCls}
-                placeholder="Ex: Dipirona, Amoxicilina…"
-                value={form.alergias}
-                onChange={e => set('alergias', e.target.value)}
+                className={classeCampo}
+                value={form.microchip}
+                onChange={(e) => alterar('microchip', e.target.value)}
+                placeholder="Número do microchip"
+                maxLength={100}
               />
-
-            </div>
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Restrições
-              </label>
-
-              <input
-                className={inputCls}
-                placeholder="Ex: Não pode receber vacina V4…"
-                value={form.restricoes}
-                onChange={e => set('restricoes', e.target.value)}
-              />
-
-            </div>
-
-            <div>
-
-              <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                Cuidados especiais
-              </label>
-
-              <input
-                className={inputCls}
-                placeholder="Ex: Braquicefálico — cuidado com anestesia…"
-                value={form.cuidados}
-                onChange={e => set('cuidados', e.target.value)}
-              />
-
-            </div>
-
-            <div>
-
-              <label className="block text-xs font-medium text-amber-700 mb-1.5">
-                ⚠ Alerta de atenção especial
-              </label>
-
-              <input
-                className={inputCls}
-                placeholder="Ex: Comportamento agressivo em consultas…"
-                value={form.alerta}
-                onChange={e => set('alerta', e.target.value)}
-              />
-
-            </div>
-
+            </Campo>
           </div>
-
-          {/* Observações */}
-
-          <div>
-
-            <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-              Observações
-            </label>
-
-            <textarea
-              className={`${inputCls} min-h-[80px] resize-none`}
-              placeholder="Ex: Animal dócil, gosta de brincar…"
-              value={form.observacoes}
-              onChange={e => set('observacoes', e.target.value)}
-            />
-
-          </div>
-
         </div>
 
-        {/* Botões */}
+        <div>
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#0C4A45]">
+            <Icone nome="user" />
+            Responsável
+          </div>
 
-        <div className="flex gap-3 p-6 border-t border-[#EAE8E3] sticky bottom-0 bg-white">
+          <Campo label="Tutor">
+            <select
+              className={classeCampo}
+              value={form.tutorId}
+              onChange={(e) => alterar('tutorId', e.target.value)}
+            >
+              <option value="">Sem tutor vinculado</option>
+              {tutores.map((tutor) => (
+                <option key={tutor.id} value={tutor.id}>
+                  {tutor.nome_completo || tutor.nome || 'Tutor sem nome'}
+                </option>
+              ))}
+            </select>
+            {tutores.length === 0 && (
+              <span className="mt-1.5 block text-xs text-[#8B918F]">
+                Cadastre um tutor na página Tutores para vinculá-lo depois.
+              </span>
+            )}
+          </Campo>
+        </div>
 
+        <Campo label="Observações">
+          <textarea
+            className={`${classeCampo} min-h-24 resize-y`}
+            value={form.observacoes}
+            onChange={(e) => alterar('observacoes', e.target.value)}
+            placeholder="Informações adicionais sobre o paciente..."
+            maxLength={5000}
+          />
+        </Campo>
+
+        {erroFormulario && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {erroFormulario}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 border-t border-[#EAE8E3] pt-4">
           <button
+            type="button"
             onClick={onClose}
-            className="flex-1 border border-[#D8D5CE] text-[#6B7280] font-medium py-2.5 rounded-[10px] text-sm hover:bg-[#F7F5F0]"
+            disabled={salvando}
+            className="rounded-xl border border-[#E4E7E2] px-4 py-2.5 text-sm font-medium text-[#46524F] transition hover:bg-[#F4F3EE] disabled:opacity-50"
           >
             Cancelar
           </button>
 
           <button
-            onClick={cadastrar}
-            className="flex-1 bg-[#0C4A45] text-white font-semibold py-2.5 rounded-[10px] text-sm hover:bg-[#0a3d38]"
+            type="submit"
+            disabled={salvando}
+            className="rounded-xl bg-[#0C4A45] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#093B37] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Cadastrar animal
+            {salvando
+              ? 'Salvando...'
+              : editando
+                ? 'Salvar alterações'
+                : 'Cadastrar animal'}
           </button>
-
         </div>
+      </form>
+    </Modal>
+  )
+}
 
-      </div>
+function InfoItem({ titulo, valor }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-medium text-[#858C88]">{titulo}</p>
+      <p className="mt-1 break-words text-sm font-medium text-[#263633]">
+        {valor || 'Não informado'}
+      </p>
+    </div>
+  )
+}
 
+function AnimalDetail({ animal, onClose, onEditar, onExcluir, excluindo }) {
+  const [aba, setAba] = useState('dados')
+
+  if (!animal) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex justify-end bg-[#102321]/35 backdrop-blur-[1px]"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <aside className="flex h-full w-full max-w-lg flex-col overflow-y-auto bg-[#FDFCF9] shadow-2xl">
+        <header className="flex items-center justify-between border-b border-[#EAE8E3] px-6 py-5">
+          <span className="text-sm font-medium text-[#79817D]">
+            Ficha do paciente
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar ficha"
+            className="rounded-lg p-2 text-[#65716E] transition hover:bg-[#F0EFE9]"
+          >
+            <Icone nome="close" />
+          </button>
+        </header>
+
+        <div className="px-6 pb-6 pt-7">
+          <div className="flex items-center gap-4">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#EAF2E9] text-4xl">
+              {ESPECIE_ICON[animal.especie] || '🐾'}
+            </div>
+
+            <div className="min-w-0">
+              <h2 className="break-words text-2xl font-semibold text-[#15312E]">
+                {animal.nome}
+              </h2>
+              <p className="mt-1 text-sm text-[#737D78]">
+                {[animal.especie, animal.raca].filter(Boolean).join(' · ') ||
+                  'Espécie não informada'}
+              </p>
+              <span className="mt-2 inline-flex rounded-full bg-[#E6F1E8] px-2.5 py-1 text-xs font-medium text-[#286747]">
+                Paciente ativo
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-[#EAE8E3] bg-white p-4">
+              <p className="text-xs text-[#858C88]">Idade</p>
+              <p className="mt-1 text-base font-semibold text-[#263633]">
+                {calcularIdade(animal.nascimento)}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-[#EAE8E3] bg-white p-4">
+              <p className="text-xs text-[#858C88]">Peso atual</p>
+              <p className="mt-1 text-base font-semibold text-[#263633]">
+                {animal.peso !== '' && animal.peso !== null
+                  ? `${animal.peso} kg`
+                  : 'Não informado'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex border-b border-[#EAE8E3]">
+            <button
+              type="button"
+              onClick={() => setAba('dados')}
+              className={`border-b-2 px-4 py-3 text-sm font-medium ${
+                aba === 'dados'
+                  ? 'border-[#0C4A45] text-[#0C4A45]'
+                  : 'border-transparent text-[#858C88] hover:text-[#263633]'
+              }`}
+            >
+              Dados gerais
+            </button>
+            <button
+              type="button"
+              onClick={() => setAba('observacoes')}
+              className={`border-b-2 px-4 py-3 text-sm font-medium ${
+                aba === 'observacoes'
+                  ? 'border-[#0C4A45] text-[#0C4A45]'
+                  : 'border-transparent text-[#858C88] hover:text-[#263633]'
+              }`}
+            >
+              Observações
+            </button>
+          </div>
+
+          {aba === 'dados' ? (
+            <div className="mt-5 space-y-6">
+              <section>
+                <h3 className="mb-4 text-sm font-semibold text-[#15312E]">
+                  Informações do animal
+                </h3>
+                <div className="grid grid-cols-2 gap-x-5 gap-y-5">
+                  <InfoItem titulo="Nome" valor={animal.nome} />
+                  <InfoItem titulo="Espécie" valor={animal.especie} />
+                  <InfoItem titulo="Raça" valor={animal.raca} />
+                  <InfoItem titulo="Sexo" valor={animal.sexo} />
+                  <InfoItem
+                    titulo="Nascimento"
+                    valor={formatarData(animal.nascimento)}
+                  />
+                  <InfoItem
+                    titulo="Microchip"
+                    valor={animal.microchip}
+                  />
+                </div>
+              </section>
+
+              <section className="border-t border-[#EAE8E3] pt-5">
+                <h3 className="mb-4 text-sm font-semibold text-[#15312E]">
+                  Tutor responsável
+                </h3>
+                <div className="flex items-center gap-3 rounded-xl border border-[#EAE8E3] bg-white p-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F1F0E9] text-[#0C4A45]">
+                    <Icone nome="user" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[#263633]">
+                      {animal.tutorNome}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#858C88]">
+                      Responsável cadastrado
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : (
+            <section className="mt-5">
+              <h3 className="mb-3 text-sm font-semibold text-[#15312E]">
+                Observações clínicas
+              </h3>
+              <div className="whitespace-pre-wrap rounded-xl border border-[#EAE8E3] bg-white p-4 text-sm leading-6 text-[#46524F]">
+                {animal.observacoes || 'Nenhuma observação cadastrada.'}
+              </div>
+            </section>
+          )}
+
+          <div className="mt-8 flex flex-col gap-3 border-t border-[#EAE8E3] pt-5">
+            <button
+              type="button"
+              onClick={onEditar}
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#0C4A45] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#093B37]"
+            >
+              <Icone nome="edit" tamanho={16} />
+              Editar ficha
+            </button>
+
+            <button
+              type="button"
+              onClick={onExcluir}
+              disabled={excluindo}
+              className="flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+            >
+              <Icone nome="trash" tamanho={16} />
+              {excluindo ? 'Inativando...' : 'Inativar animal'}
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
   )
 }
 
 export default function Animais() {
-
-  const [animais, setAnimais] = useState(ANIMAIS_INICIAIS)
+  const [animais, setAnimais] = useState([])
+  const [tutores, setTutores] = useState([])
   const [busca, setBusca] = useState('')
-  const [filtroEspecie, setFiltroEspecie] = useState('')
-  const [detalhe, setDetalhe] = useState(null)
-  const [novoOpen, setNovoOpen] = useState(false)
+  const [filtroEspecie, setFiltroEspecie] = useState('Todos')
+  const [animalSelecionado, setAnimalSelecionado] = useState(null)
+  const [modalAberto, setModalAberto] = useState(false)
+  const [animalEditando, setAnimalEditando] = useState(null)
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
+  const [erro, setErro] = useState('')
+  const [sucesso, setSucesso] = useState('')
 
-  const filtrados = animais.filter(animal => {
+  const carregarDados = useCallback(async () => {
+    setCarregando(true)
+    setErro('')
 
-    const texto = busca.toLowerCase()
+    try {
+      const [resultadoAnimais, resultadoTutores] = await Promise.all([
+        requisicaoAPI('animais'),
+        requisicaoAPI('tutores'),
+      ])
 
-    const match =
-      animal.nome.toLowerCase().includes(texto) ||
-      animal.tutorNome.toLowerCase().includes(texto) ||
-      animal.raca.toLowerCase().includes(texto)
+      setAnimais(
+        extrairLista(resultadoAnimais, 'animais').map(converterAnimal)
+      )
+      setTutores(extrairLista(resultadoTutores, 'tutores'))
+    } catch (error) {
+      setErro(mensagemErro(error))
+    } finally {
+      setCarregando(false)
+    }
+  }, [])
 
-    const esp =
-      filtroEspecie
-        ? animal.especie === filtroEspecie
-        : true
+  useEffect(() => {
+    carregarDados()
+  }, [carregarDados])
 
-    return match && esp
-  })
+  async function salvarAnimal(formulario) {
+    setSalvando(true)
+    setErro('')
+    setSucesso('')
 
-  function adicionarAnimal(novoAnimal) {
-    setAnimais(prev => [...prev, novoAnimal])
-    setNovoOpen(false)
+    const dados = {
+      nome: formulario.nome,
+      especie: converterEspecieParaBanco(formulario.especie),
+      raca: formulario.raca || null,
+      sexo: converterSexoParaBanco(formulario.sexo) || null,
+      data_nascimento: formulario.nascimento || null,
+      peso:
+        formulario.peso === '' || formulario.peso === null
+          ? null
+          : Number(formulario.peso),
+      microchip: formulario.microchip || null,
+      observacoes: formulario.observacoes || null,
+      tutor_id: formulario.tutorId || null,
+    }
+
+    try {
+      if (animalEditando) {
+        await requisicaoAPI(`animais/${animalEditando.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(dados),
+        })
+
+        setSucesso('Animal atualizado com sucesso.')
+      } else {
+        await requisicaoAPI('animais', {
+          method: 'POST',
+          body: JSON.stringify(dados),
+        })
+
+        setSucesso('Animal cadastrado com sucesso.')
+      }
+
+      setModalAberto(false)
+      setAnimalEditando(null)
+      setAnimalSelecionado(null)
+      await carregarDados()
+    } catch (error) {
+      setErro(mensagemErro(error))
+      throw error
+    } finally {
+      setSalvando(false)
+    }
   }
 
+  async function inativarAnimal() {
+    if (!animalSelecionado) return
+
+    const confirmar = window.confirm(
+      `Deseja realmente inativar o cadastro de ${animalSelecionado.nome}?`
+    )
+
+    if (!confirmar) return
+
+    setExcluindo(true)
+    setErro('')
+    setSucesso('')
+
+    try {
+      await requisicaoAPI(`animais/${animalSelecionado.id}`, {
+        method: 'DELETE',
+      })
+
+      setAnimalSelecionado(null)
+      setSucesso('Animal inativado com sucesso.')
+      await carregarDados()
+    } catch (error) {
+      setErro(mensagemErro(error))
+    } finally {
+      setExcluindo(false)
+    }
+  }
+
+  function abrirEdicao() {
+    setAnimalEditando(animalSelecionado)
+    setAnimalSelecionado(null)
+    setModalAberto(true)
+  }
+
+  const animaisFiltrados = animais.filter((animal) => {
+    const termo = busca.trim().toLowerCase()
+
+    const correspondeBusca =
+      animal.nome.toLowerCase().includes(termo) ||
+      animal.raca.toLowerCase().includes(termo) ||
+      animal.tutorNome.toLowerCase().includes(termo) ||
+      animal.especie.toLowerCase().includes(termo)
+
+    const correspondeEspecie =
+      filtroEspecie === 'Todos' ||
+      animal.especie.toLowerCase() === filtroEspecie.toLowerCase()
+
+    return correspondeBusca && correspondeEspecie
+  })
+
+  const quantidadeCaes = animais.filter(
+    (animal) => animal.especie === 'Cão'
+  ).length
+
+  const quantidadeGatos = animais.filter(
+    (animal) => animal.especie === 'Gato'
+  ).length
+
+  const quantidadeOutros = animais.length - quantidadeCaes - quantidadeGatos
+
   return (
-    <div className="p-6 max-w-[900px] mx-auto">
-
-      {detalhe && (
-        <AnimalDetail
-          animal={detalhe}
-          onClose={() => setDetalhe(null)}
-        />
-      )}
-
-      {novoOpen && (
-        <NovoAnimalModal
-          onClose={() => setNovoOpen(false)}
-          onSalvar={adicionarAnimal}
-        />
-      )}
-
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-
+    <main className="mx-auto min-h-full max-w-[1500px] p-4 sm:p-6">
+      <header className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-
-          <h1 className="text-2xl font-semibold text-[#0C1A1A]">
+          <p className="text-sm text-[#7A807E]">Cadastro e acompanhamento</p>
+          <h1 className="mt-1 text-2xl font-semibold text-[#0C1A1A]">
             Animais
           </h1>
-
-          <p className="text-sm text-[#6B7280] mt-0.5">
-            {animais.length} pacientes cadastrados
+          <p className="mt-1 text-sm text-[#8B918F]">
+            Gerencie os pacientes e consulte suas informações.
           </p>
-
         </div>
 
         <button
-          onClick={() => setNovoOpen(true)}
-          className="flex items-center gap-2 bg-[#0C4A45] text-white font-semibold px-4 py-2.5 rounded-[10px] hover:bg-[#0a3d38] text-sm transition-colors"
+          type="button"
+          onClick={() => {
+            setAnimalEditando(null)
+            setModalAberto(true)
+          }}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E05C2A] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#C94B20]"
         >
-
-          <svg
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-4 h-4"
-          >
-            <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
-          </svg>
-
+          <Icone nome="plus" tamanho={17} />
           Novo animal
-
         </button>
+      </header>
 
-      </div>
-
-      <div className="flex gap-3 mb-5 flex-wrap">
-
-        <div className="relative flex-1 min-w-48">
-
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
-          >
-            <circle cx="9" cy="9" r="6" />
-            <path d="M15 15l3 3" strokeLinecap="round" />
-          </svg>
-
-          <input
-            type="text"
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
-            placeholder="Buscar por nome, tutor ou raça…"
-            className="w-full bg-white border border-[#D8D5CE] rounded-[10px] pl-10 pr-4 py-2.5 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/30 focus:border-[#0C4A45] transition-all"
-          />
-
-        </div>
-
-        <div className="flex gap-2">
-
+      {erro && (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span>{erro}</span>
           <button
-            onClick={() => setFiltroEspecie('')}
-            className={`px-3 py-2 rounded-[10px] text-sm font-medium border transition-all ${
-              !filtroEspecie
-                ? 'bg-[#0C4A45] text-white border-[#0C4A45]'
-                : 'bg-white border-[#D8D5CE] text-[#6B7280]'
-            }`}
+            type="button"
+            onClick={() => setErro('')}
+            aria-label="Fechar mensagem"
+            className="shrink-0 rounded p-0.5 hover:bg-red-100"
           >
-            Todos
+            <Icone nome="close" tamanho={16} />
           </button>
-
-          {ESPECIES.slice(0, 3).map(especie => (
-
-            <button
-              key={especie}
-              onClick={() =>
-                setFiltroEspecie(
-                  filtroEspecie === especie
-                    ? ''
-                    : especie
-                )
-              }
-              className={`px-3 py-2 rounded-[10px] text-sm font-medium border transition-all ${
-                filtroEspecie === especie
-                  ? 'bg-[#0C4A45] text-white border-[#0C4A45]'
-                  : 'bg-white border-[#D8D5CE] text-[#6B7280]'
-              }`}
-            >
-              {ESPECIE_ICON[especie]} {especie}
-            </button>
-
-          ))}
-
-        </div>
-
-      </div>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-        {filtrados.map(animal => (
-
-          <button
-            key={animal.id}
-            onClick={() => setDetalhe(animal)}
-            className="bg-white rounded-2xl border border-[#EAE8E3] p-4 text-left hover:border-[#0C4A45]/40 hover:shadow-md transition-all group"
-          >
-
-            <div className="flex items-start justify-between mb-3">
-
-              <div className="w-10 h-10 rounded-xl bg-[#F7F5F0] flex items-center justify-center text-xl">
-                {ESPECIE_ICON[animal.especie]}
-              </div>
-
-              <div className="flex gap-1">
-
-                {animal.alerta && (
-                  <span
-                    className="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center"
-                    title="Atenção especial"
-                  >
-                    ⚠
-                  </span>
-                )}
-
-                {animal.alergias && (
-                  <span
-                    className="w-5 h-5 bg-rose-400 rounded-full flex items-center justify-center"
-                    title={`Alergia: ${animal.alergias}`}
-                  >
-                    <span className="text-white text-[9px] font-bold">
-                      A
-                    </span>
-                  </span>
-                )}
-
-              </div>
-
-            </div>
-
-            <p className="font-semibold text-[#0C1A1A] mb-0.5">
-              {animal.nome}
-            </p>
-
-            <p className="text-xs text-[#6B7280] mb-3">
-              {animal.raca || animal.especie} · {animal.sexo} ·{' '}
-              {calcIdade(animal.nascimento)}
-            </p>
-
-            <div className="flex items-center gap-2 text-xs text-[#9CA3AF]">
-
-              <div className="w-5 h-5 rounded-full bg-[#E8F4F0] flex items-center justify-center text-[#0C4A45] font-bold text-[10px]">
-                {animal.tutorNome?.[0]}
-              </div>
-
-              <span className="truncate">
-                {animal.tutorNome}
-              </span>
-
-            </div>
-
-          </button>
-
-        ))}
-
-      </div>
-
-      {filtrados.length === 0 && (
-        <div className="py-16 text-center text-[#9CA3AF] bg-white rounded-2xl border border-[#EAE8E3]">
-          <p className="text-4xl mb-3">
-            🐾
-          </p>
-
-          <p className="font-medium">
-            Nenhum animal encontrado
-          </p>
         </div>
       )}
 
-    </div>
+      {sucesso && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <span>{sucesso}</span>
+          <button
+            type="button"
+            onClick={() => setSucesso('')}
+            aria-label="Fechar mensagem"
+            className="rounded p-0.5 hover:bg-green-100"
+          >
+            <Icone nome="close" tamanho={16} />
+          </button>
+        </div>
+      )}
+
+      <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-[#EAE8E3] bg-white p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[#7A807E]">Total de pacientes</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EAF2E9] text-[#0C4A45]">
+              <Icone nome="paw" tamanho={20} />
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-semibold text-[#15312E]">
+            {carregando ? '—' : animais.length}
+          </p>
+          <p className="mt-1 text-xs text-[#858C88]">
+            Animais cadastrados no estabelecimento
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-[#EAE8E3] bg-white p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[#7A807E]">Cães</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF0E6] text-xl">
+              🐕
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-semibold text-[#15312E]">
+            {carregando ? '—' : quantidadeCaes}
+          </p>
+          <p className="mt-1 text-xs text-[#858C88]">
+            Pacientes da espécie canina
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-[#EAE8E3] bg-white p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[#7A807E]">Gatos e outros</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F0ECFA] text-xl">
+              🐈
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-semibold text-[#15312E]">
+            {carregando ? '—' : quantidadeGatos + quantidadeOutros}
+          </p>
+          <p className="mt-1 text-xs text-[#858C88]">
+            Felinos e demais espécies
+          </p>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-[#EAE8E3] bg-white">
+        <div className="flex flex-col gap-3 border-b border-[#EAE8E3] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <h2 className="font-semibold text-[#15312E]">
+              Pacientes cadastrados
+            </h2>
+            <p className="mt-1 text-xs text-[#858C88]">
+              {carregando
+                ? 'Carregando registros...'
+                : `${animaisFiltrados.length} ${
+                    animaisFiltrados.length === 1
+                      ? 'paciente encontrado'
+                      : 'pacientes encontrados'
+                  }`}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative">
+              <Icone
+                nome="search"
+                tamanho={17}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#929994]"
+              />
+              <input
+                value={busca}
+                onChange={(event) => setBusca(event.target.value)}
+                placeholder="Buscar animal ou tutor..."
+                aria-label="Buscar animal ou tutor"
+                className="w-full rounded-xl border border-[#E4E7E2] py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-[#0C4A45] sm:w-64"
+              />
+            </div>
+
+            <select
+              value={filtroEspecie}
+              onChange={(event) => setFiltroEspecie(event.target.value)}
+              aria-label="Filtrar por espécie"
+              className="rounded-xl border border-[#E4E7E2] bg-white px-3 py-2.5 text-sm text-[#46524F] outline-none focus:border-[#0C4A45]"
+            >
+              <option value="Todos">Todas as espécies</option>
+              {ESPECIES.map((especie) => (
+                <option key={especie} value={especie}>
+                  {especie}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {carregando ? (
+          <div className="space-y-3 p-5">
+            {[1, 2, 3].map((item) => (
+              <div
+                key={item}
+                className="h-20 animate-pulse rounded-xl bg-[#F3F3EE]"
+              />
+            ))}
+          </div>
+        ) : animaisFiltrados.length === 0 ? (
+          <div className="flex flex-col items-center px-5 py-14 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EAF2E9] text-3xl">
+              🐾
+            </div>
+            <h3 className="mt-4 font-semibold text-[#15312E]">
+              {animais.length === 0
+                ? 'Nenhum animal cadastrado'
+                : 'Nenhum resultado encontrado'}
+            </h3>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-[#858C88]">
+              {animais.length === 0
+                ? 'Cadastre o primeiro paciente para começar a organizar as informações no UniVet.'
+                : 'Tente mudar a pesquisa ou selecionar outra espécie.'}
+            </p>
+            {animais.length === 0 && (
+              <button
+                type="button"
+                onClick={() => setModalAberto(true)}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0C4A45] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#093B37]"
+              >
+                <Icone nome="plus" tamanho={16} />
+                Cadastrar primeiro animal
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            {animaisFiltrados.map((animal) => (
+              <button
+                type="button"
+                key={animal.id}
+                onClick={() => setAnimalSelecionado(animal)}
+                className="group rounded-2xl border border-[#EAE8E3] bg-white p-4 text-left transition hover:border-[#B7CDC3] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/20"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#EAF2E9] text-3xl">
+                    {ESPECIE_ICON[animal.especie] || '🐾'}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="truncate font-semibold text-[#15312E]">
+                        {animal.nome}
+                      </h3>
+                      <Icone
+                        nome="chevron"
+                        tamanho={17}
+                        className="shrink-0 text-[#A0A7A2] transition group-hover:translate-x-0.5 group-hover:text-[#0C4A45]"
+                      />
+                    </div>
+                    <p className="mt-1 truncate text-sm text-[#737D78]">
+                      {animal.raca || animal.especie || 'Raça não informada'}
+                    </p>
+                    <p className="mt-1 text-xs text-[#858C88]">
+                      {animal.especie}
+                      {animal.sexo ? ` · ${animal.sexo}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="my-4 border-t border-[#F0EFEA]" />
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2 text-sm text-[#65716E]">
+                    <Icone nome="user" tamanho={15} />
+                    <span className="truncate">{animal.tutorNome}</span>
+                  </div>
+                  <span className="shrink-0 text-xs text-[#858C88]">
+                    {animal.peso !== '' && animal.peso !== null
+                      ? `${animal.peso} kg`
+                      : 'Sem peso'}
+                  </span>
+                </div>
+
+                <div className="mt-3 flex items-center gap-2 text-xs text-[#858C88]">
+                  <Icone nome="calendar" tamanho={14} />
+                  <span>
+                    {animal.nascimento
+                      ? `Nascimento: ${formatarData(animal.nascimento)}`
+                      : 'Nascimento não informado'}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {modalAberto && (
+        <NovoAnimalModal
+          onClose={() => {
+            if (!salvando) {
+              setModalAberto(false)
+              setAnimalEditando(null)
+            }
+          }}
+          onSalvar={salvarAnimal}
+          tutores={tutores}
+          salvando={salvando}
+          animalInicial={animalEditando}
+        />
+      )}
+
+      {animalSelecionado && (
+        <AnimalDetail
+          animal={animalSelecionado}
+          onClose={() => setAnimalSelecionado(null)}
+          onEditar={abrirEdicao}
+          onExcluir={inativarAnimal}
+          excluindo={excluindo}
+        />
+      )}
+    </main>
   )
 }

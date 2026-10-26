@@ -1,112 +1,39 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import logo from '../assets/gps.png'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 
-const UFS = [
-  'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG',
-  'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR',
-  'RS', 'SC', 'SE', 'SP', 'TO',
-]
+const API_URL = import.meta.env.VITE_API_URL || ''
 
-function StepIndicator({ current, total }) {
+function Campo({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  required = false,
+  autoComplete,
+}) {
   return (
-    <div className="flex items-center gap-2 mb-8">
-      {Array.from({ length: total }, (_, i) => i + 1).map(s => (
-        <div key={s} className="flex items-center gap-2">
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
-              s < current
-                ? 'bg-[#0C4A45] text-white'
-                : s === current
-                  ? 'bg-[#0C4A45] text-white ring-4 ring-[#0C4A45]/20'
-                  : 'bg-[#EAE8E3] text-[#9CA3AF]'
-            }`}
-          >
-            {s < current ? (
-              <svg viewBox="0 0 12 12" fill="none" className="w-3.5 h-3.5">
-                <polyline
-                  points="2 6 5 9 10 3"
-                  stroke="white"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            ) : (
-              s
-            )}
-          </div>
-
-          {s < total && (
-            <div
-              className={`h-0.5 w-10 rounded-full transition-all ${
-                s < current ? 'bg-[#0C4A45]' : 'bg-[#EAE8E3]'
-              }`}
-            />
-          )}
-        </div>
-      ))}
-
-      <span className="text-xs text-[#9CA3AF] ml-1">
-        Passo {current} de {total}
-      </span>
-    </div>
-  )
-}
-
-function PasswordStrength({ senha }) {
-  const strength = (() => {
-    if (!senha) return 0
-
-    let score = 0
-
-    if (senha.length >= 8) score++
-    if (/[A-Z]/.test(senha)) score++
-    if (/[0-9]/.test(senha)) score++
-    if (/[^A-Za-z0-9]/.test(senha)) score++
-
-    return score
-  })()
-
-  const labels = ['', 'Fraca', 'Razoável', 'Boa', 'Forte']
-
-  const colors = [
-    '',
-    'bg-rose-400',
-    'bg-amber-400',
-    'bg-blue-400',
-    'bg-emerald-500',
-  ]
-
-  if (!senha) return null
-
-  return (
-    <div className="mt-2">
-      <div className="flex gap-1 mb-1">
-        {[1, 2, 3, 4].map(i => (
-          <div
-            key={i}
-            className={`h-1 flex-1 rounded-full transition-all ${
-              i <= strength ? colors[strength] : 'bg-[#EAE8E3]'
-            }`}
-          />
-        ))}
-      </div>
-
-      <p
-        className={`text-xs ${
-          strength <= 1
-            ? 'text-rose-500'
-            : strength === 2
-              ? 'text-amber-500'
-              : strength === 3
-                ? 'text-blue-500'
-                : 'text-emerald-600'
-        }`}
+    <div className="space-y-1.5">
+      <label
+        htmlFor={name}
+        className="block text-sm font-medium text-[#263A35]"
       >
-        Senha {labels[strength]}
-      </p>
+        {label}{required ? ' *' : ''}
+      </label>
+
+      <input
+        id={name}
+        name={name}
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        autoComplete={autoComplete}
+        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#0C4A45] focus:ring-2 focus:ring-[#0C4A45]/10"
+      />
     </div>
   )
 }
@@ -114,685 +41,336 @@ function PasswordStrength({ senha }) {
 export default function Cadastro() {
   const navigate = useNavigate()
 
-  const [step, setStep] = useState(1)
+  const [etapa, setEtapa] = useState(1)
   const [mostrarSenha, setMostrarSenha] = useState(false)
-  const [erros, setErros] = useState({})
-  const [loading, setLoading] = useState(false)
+  const [carregando, setCarregando] = useState(false)
+  const [erro, setErro] = useState('')
 
-  const [form, setForm] = useState({
-    nome: '',
-    email: '',
-    telefone: '',
-    senha: '',
-    confirmSenha: '',
-    perfil: '',
-    crmv: '',
-    crmvUF: '',
-    nomeEstabelecimento: '',
-    tipoEstabelecimento: '',
-  })
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [senha, setSenha] = useState('')
+  const [confirmarSenha, setConfirmarSenha] = useState('')
 
-  function set(field, value) {
-    setForm(f => ({
-      ...f,
-      [field]: value,
-    }))
+  const [nomeEstabelecimento, setNomeEstabelecimento] = useState('')
+  const [tipoEstabelecimento, setTipoEstabelecimento] =
+    useState('CLINICA')
 
-    setErros(e => ({
-      ...e,
-      [field]: '',
-      geral: '',
-    }))
+  function atualizarTelefone(event) {
+    const numeros = event.target.value.replace(/\D/g, '').slice(0, 11)
+
+    let formatado = numeros
+
+    if (numeros.length > 2) {
+      formatado = `(${numeros.slice(0, 2)}) ${numeros.slice(2)}`
+    }
+
+    if (numeros.length > 7) {
+      formatado = `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`
+    }
+
+    setTelefone(formatado)
   }
 
-  function formatTelefone(v) {
-    const n = v.replace(/\D/g, '').slice(0, 11)
+  function validarPrimeiraEtapa(event) {
+    event.preventDefault()
+    setErro('')
 
-    if (n.length <= 10) {
-      return n
-        .replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3')
-        .replace(/-$/, '')
+    if (!nome.trim() || !email.trim() || !senha || !confirmarSenha) {
+      setErro('Preencha todos os campos obrigatórios.')
+      return
     }
 
-    return n
-      .replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3')
-      .replace(/-$/, '')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErro('Informe um e-mail válido.')
+      return
+    }
+
+    if (senha.length < 6) {
+      setErro('A senha deve ter pelo menos 6 caracteres.')
+      return
+    }
+
+    if (senha !== confirmarSenha) {
+      setErro('As senhas não coincidem.')
+      return
+    }
+
+    setEtapa(2)
   }
 
-  function validateStep1() {
-    const e = {}
+  async function finalizarCadastro(event) {
+    event.preventDefault()
+    setErro('')
 
-    if (!form.nome.trim()) {
-      e.nome = 'Nome completo é obrigatório.'
+    if (!nomeEstabelecimento.trim()) {
+      setErro('Informe o nome do estabelecimento.')
+      return
     }
 
-    if (!form.email.trim()) {
-      e.email = 'E-mail é obrigatório.'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      e.email = 'E-mail inválido.'
-    }
-
-    if (!form.senha) {
-      e.senha = 'Senha é obrigatória.'
-    } else if (form.senha.length < 8) {
-      e.senha = 'A senha deve ter pelo menos 8 caracteres.'
-    }
-
-    if (!form.confirmSenha) {
-      e.confirmSenha = 'Confirme sua senha.'
-    } else if (form.senha !== form.confirmSenha) {
-      e.confirmSenha = 'As senhas não coincidem.'
-    }
-
-    setErros(e)
-
-    return Object.keys(e).length === 0
-  }
-
-  function validateStep2() {
-    const e = {}
-
-    if (!form.nomeEstabelecimento.trim()) {
-      e.nomeEstabelecimento = 'Nome do estabelecimento é obrigatório.'
-    }
-
-    if (!form.tipoEstabelecimento) {
-      e.tipoEstabelecimento = 'Selecione o tipo do estabelecimento.'
-    }
-
-    if (!form.perfil) {
-      e.perfil = 'Selecione seu perfil.'
-    }
-
-    if (form.perfil === 'veterinario') {
-      if (!form.crmv.trim()) {
-        e.crmv = 'CRMV é obrigatório para veterinários.'
-      } else if (!/^\d{3,6}$/.test(form.crmv.trim())) {
-        e.crmv = 'CRMV deve conter apenas números (3–6 dígitos).'
-      }
-
-      if (!form.crmvUF) {
-        e.crmvUF = 'Selecione o estado do CRMV.'
-      }
-    }
-
-    setErros(e)
-
-    return Object.keys(e).length === 0
-  }
-
-  function handleNext() {
-    if (validateStep1()) {
-      setStep(2)
-    }
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-
-    if (!validateStep2()) return
-
-    setLoading(true)
-    setErros({})
+    setCarregando(true)
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: form.email.trim(),
-        password: form.senha,
+      const { data, error: erroCadastro } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: senha,
         options: {
           data: {
-            nome_completo: form.nome.trim(),
-            telefone: form.telefone || null,
-            perfil: form.perfil,
-            crmv:
-            form.perfil === 'veterinario'
-              ? `${form.crmv}/${form.crmvUF}`
-              : null,
-            nome_estabelecimento: form.nomeEstabelecimento.trim(),
-            tipo_estabelecimento: form.tipoEstabelecimento,
+            nome_completo: nome.trim(),
+            telefone: telefone.trim() || null,
           },
-        emailRedirectTo: `${window.location.origin}/login`,
         },
       })
 
-      if (error) {
-        if (error.message.toLowerCase().includes('already registered')) {
-          throw new Error('Este e-mail já está cadastrado.')
-        }
-
-        throw error
+      if (erroCadastro) {
+        throw new Error(erroCadastro.message)
       }
 
-      if (!data.user) {
-        throw new Error('Não foi possível criar a conta.')
-      }
-
-      if (!data.session) {
+      if (!data.session?.access_token) {
         throw new Error(
-          'Conta criada, mas é necessário confirmar o e-mail antes de entrar.'
+          'A conta foi criada, mas não há uma sessão ativa. Confira se a confirmação de e-mail está desativada no Supabase. Se necessário, entre pela tela de login.'
         )
       }
 
-      const { error: estabelecimentoError } = await supabase.rpc(
-        'criar_estabelecimento_inicial',
-        {
-          p_nome_estabelecimento: form.nomeEstabelecimento.trim(),
-          p_tipo_estabelecimento: form.tipoEstabelecimento,
-          p_nome_completo: form.nome.trim(),
-          p_email: form.email.trim(),
-          p_telefone: form.telefone || null,
-          p_crmv:
-            form.perfil === 'veterinario'
-              ? `${form.crmv}/${form.crmvUF}`
-              : null,
-        }
-      )
+      const resposta = await fetch(`${API_URL}/api/cadastro/estabelecimento`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${data.session.access_token}`,
+        },
+        body: JSON.stringify({
+          nomeCompleto: nome.trim(),
+          telefone: telefone.trim() || null,
+          nomeEstabelecimento: nomeEstabelecimento.trim(),
+          tipoEstabelecimento,
+        }),
+      })
 
-      if (estabelecimentoError) {
-        throw estabelecimentoError
+      const textoResposta = await resposta.text()
+      let resultado = {}
+
+      if (textoResposta) {
+        try {
+          resultado = JSON.parse(textoResposta)
+        } catch {
+          resultado = {}
+        }
       }
 
-      navigate('/app/dashboard')
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.erro ||
+            resultado.message ||
+            resultado.mensagem ||
+            `Não foi possível criar o estabelecimento. Código: ${resposta.status}.`
+        )
+      }
+
+      navigate('/app/dashboard', { replace: true })
     } catch (error) {
       console.error('Erro no cadastro:', error)
 
-      setErros({
-        geral: error.message || 'Não foi possível criar sua conta.',
-      })
+      setErro(
+        error.message ||
+          'Não foi possível concluir o cadastro. Tente novamente.'
+      )
     } finally {
-      setLoading(false)
+      setCarregando(false)
     }
   }
 
-  const isVet = form.perfil === 'veterinario'
-
   return (
-    <div
-      className="min-h-screen bg-[#F7F5F0] flex"
-      style={{ fontFamily: 'Outfit, sans-serif' }}
-    >
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] shrink-0 bg-[#0C4A45] flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute bottom-10 -left-16 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
-
-        <Link to="/" className="flex items-center gap-2.5 relative z-10">
-          <div className="w-7 h-7 rounded-xl bg-white/15 flex items-center justify-center overflow-hidden">
-            <img
-              src={logo}
-              alt="UniVet"
-              className="w-full h-full object-contain"
-            />
+    <main className="flex min-h-screen items-center justify-center bg-[#F7F5F0] px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0C4A45] text-3xl text-white">
+            <span aria-hidden="true">🐾</span>
           </div>
 
-          <span className="text-white font-semibold text-xl">
-            UniVet
-          </span>
-        </Link>
+          <h1 className="text-3xl font-bold tracking-tight text-[#0C4A45]">
+            Criar sua conta
+          </h1>
 
-        <div className="relative z-10">
-          <h2
-            className="text-4xl font-normal text-white mb-4 leading-tight"
-            style={{ fontFamily: 'DM Serif Display, serif' }}
-          >
-            Comece hoje,
-            <br />
-            <em className="text-[#7DD3C8]">gratuitamente</em>
-          </h2>
-
-          <p className="text-[#7DD3C8] text-lg leading-relaxed mb-10">
-            Crie sua conta e organize sua prática veterinária desde o primeiro dia.
+          <p className="mt-2 text-sm text-gray-600">
+            Comece a organizar sua clínica com o UniVet.
           </p>
-
-          <div className="space-y-4">
-            {[
-              'Tutores e animais organizados',
-              'Prontuário eletrônico',
-              'Agenda veterinária',
-              'Dados protegidos',
-              'Acesso ao sistema após o cadastro',
-            ].map(text => (
-              <div key={text} className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full bg-[#7DD3C8]/20 flex items-center justify-center shrink-0">
-                  <span className="text-[#7DD3C8] text-xs font-bold">
-                    ✓
-                  </span>
-                </div>
-
-                <p className="text-[#7DD3C8] text-sm">
-                  {text}
-                </p>
-              </div>
-            ))}
-          </div>
         </div>
 
-        <p className="text-white/30 text-xs relative z-10">
-          © 2026 UniVet
-        </p>
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 overflow-y-auto">
-        <Link
-          to="/"
-          className="flex items-center gap-2 mb-8 lg:hidden"
-        >
-          <div className="w-8 h-8 rounded-lg bg-[#0C4A45] flex items-center justify-center overflow-hidden">
-            <img
-              src={logo}
-              alt="UniVet"
-              className="w-full h-full object-contain"
-            />
-          </div>
-
-          <span className="font-semibold text-[#0C1A1A] text-lg">
-            UniVet
-          </span>
-        </Link>
-
-        <div className="w-full max-w-[440px]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-6">
-            <h1
-              className="text-3xl font-normal text-[#0C1A1A] mb-1"
-              style={{ fontFamily: 'DM Serif Display, serif' }}
-            >
-              {step === 1
-                ? 'Criar sua conta'
-                : 'Seu estabelecimento'}
-            </h1>
+            <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
+              <span>Etapa {etapa} de 2</span>
+              <span>
+                {etapa === 1 ? 'Seus dados' : 'Seu estabelecimento'}
+              </span>
+            </div>
 
-            <p className="text-[#6B7280] text-sm">
-              {step === 1 ? (
-                <>
-                  Já tem conta?{' '}
-                  <Link
-                    to="/login"
-                    className="text-[#0C4A45] font-semibold hover:underline"
-                  >
-                    Entrar
-                  </Link>
-                </>
-              ) : (
-                'Quase lá! Só mais alguns detalhes.'
-              )}
-            </p>
+            <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className={`h-full rounded-full bg-[#0C4A45] transition-all ${
+                  etapa === 1 ? 'w-1/2' : 'w-full'
+                }`}
+              />
+            </div>
           </div>
 
-          <StepIndicator current={step} total={2} />
-
-          {step === 1 && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#0C1A1A] mb-1.5">
-                  Nome completo <span className="text-rose-500">*</span>
-                </label>
-
-                <input
-                  type="text"
-                  value={form.nome}
-                  onChange={e => set('nome', e.target.value)}
-                  placeholder="Dra. Ana Souza"
-                  className={`w-full bg-white border rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 transition-all ${
-                    erros.nome
-                      ? 'border-rose-400 focus:ring-rose-200'
-                      : 'border-[#D8D5CE] focus:ring-[#0C4A45]/30 focus:border-[#0C4A45]'
-                  }`}
-                />
-
-                {erros.nome && (
-                  <p className="text-xs text-rose-500 mt-1">
-                    {erros.nome}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#0C1A1A] mb-1.5">
-                  E-mail <span className="text-rose-500">*</span>
-                </label>
-
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => set('email', e.target.value)}
-                  placeholder="ana@clinica.com.br"
-                  className={`w-full bg-white border rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 transition-all ${
-                    erros.email
-                      ? 'border-rose-400 focus:ring-rose-200'
-                      : 'border-[#D8D5CE] focus:ring-[#0C4A45]/30 focus:border-[#0C4A45]'
-                  }`}
-                />
-
-                {erros.email && (
-                  <p className="text-xs text-rose-500 mt-1">
-                    {erros.email}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#0C1A1A] mb-1.5">
-                  Telefone
-                </label>
-
-                <input
-                  type="tel"
-                  value={form.telefone}
-                  onChange={e =>
-                    set('telefone', formatTelefone(e.target.value))
-                  }
-                  placeholder="(11) 99999-9999"
-                  className="w-full bg-white border border-[#D8D5CE] rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/30 focus:border-[#0C4A45] transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#0C1A1A] mb-1.5">
-                  Senha <span className="text-rose-500">*</span>
-                </label>
-
-                <div className="relative">
-                  <input
-                    type={mostrarSenha ? 'text' : 'password'}
-                    value={form.senha}
-                    onChange={e => set('senha', e.target.value)}
-                    placeholder="Mínimo 8 caracteres"
-                    className={`w-full bg-white border rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 transition-all pr-11 ${
-                      erros.senha
-                        ? 'border-rose-400 focus:ring-rose-200'
-                        : 'border-[#D8D5CE] focus:ring-[#0C4A45]/30 focus:border-[#0C4A45]'
-                    }`}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setMostrarSenha(!mostrarSenha)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280]"
-                  >
-                    {mostrarSenha ? 'Ocultar' : 'Mostrar'}
-                  </button>
-                </div>
-
-                <PasswordStrength senha={form.senha} />
-
-                {erros.senha && (
-                  <p className="text-xs text-rose-500 mt-1">
-                    {erros.senha}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#0C1A1A] mb-1.5">
-                  Confirmar senha <span className="text-rose-500">*</span>
-                </label>
-
-                <input
-                  type="password"
-                  value={form.confirmSenha}
-                  onChange={e =>
-                    set('confirmSenha', e.target.value)
-                  }
-                  placeholder="••••••••"
-                  className={`w-full bg-white border rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 transition-all ${
-                    erros.confirmSenha
-                      ? 'border-rose-400 focus:ring-rose-200'
-                      : 'border-[#D8D5CE] focus:ring-[#0C4A45]/30 focus:border-[#0C4A45]'
-                  }`}
-                />
-
-                {erros.confirmSenha && (
-                  <p className="text-xs text-rose-500 mt-1">
-                    {erros.confirmSenha}
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleNext}
-                className="w-full bg-[#0C4A45] text-white font-semibold py-3 rounded-[10px] hover:bg-[#0a3d38] transition-colors text-sm"
-              >
-                Continuar →
-              </button>
+          {erro && (
+            <div
+              role="alert"
+              className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {erro}
             </div>
           )}
 
-          {step === 2 && (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {erros.geral && (
-                <div className="p-3 rounded-[10px] bg-rose-50 border border-rose-200">
-                  <p className="text-sm text-rose-600">
-                    {erros.geral}
-                  </p>
-                </div>
-              )}
+          {etapa === 1 ? (
+            <form onSubmit={validarPrimeiraEtapa} className="space-y-4">
+              <Campo
+                label="Nome completo"
+                name="nome"
+                value={nome}
+                onChange={(event) => setNome(event.target.value)}
+                placeholder="Seu nome completo"
+                required
+                autoComplete="name"
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-[#0C1A1A] mb-1.5">
-                  Nome do estabelecimento{' '}
-                  <span className="text-rose-500">*</span>
-                </label>
+              <Campo
+                label="E-mail"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="voce@exemplo.com"
+                required
+                autoComplete="email"
+              />
 
-                <input
-                  type="text"
-                  value={form.nomeEstabelecimento}
-                  onChange={e =>
-                    set('nomeEstabelecimento', e.target.value)
-                  }
-                  placeholder="Clínica Vet Vida"
-                  className={`w-full bg-white border rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 transition-all ${
-                    erros.nomeEstabelecimento
-                      ? 'border-rose-400 focus:ring-rose-200'
-                      : 'border-[#D8D5CE] focus:ring-[#0C4A45]/30 focus:border-[#0C4A45]'
-                  }`}
-                />
+              <Campo
+                label="Telefone"
+                name="telefone"
+                type="tel"
+                value={telefone}
+                onChange={atualizarTelefone}
+                placeholder="(00) 00000-0000"
+                autoComplete="tel"
+              />
 
-                {erros.nomeEstabelecimento && (
-                  <p className="text-xs text-rose-500 mt-1">
-                    {erros.nomeEstabelecimento}
-                  </p>
-                )}
-              </div>
+              <Campo
+                label="Senha"
+                name="senha"
+                type={mostrarSenha ? 'text' : 'password'}
+                value={senha}
+                onChange={(event) => setSenha(event.target.value)}
+                placeholder="Mínimo de 6 caracteres"
+                required
+                autoComplete="new-password"
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-[#0C1A1A] mb-1.5">
-                  Tipo do estabelecimento{' '}
-                  <span className="text-rose-500">*</span>
+              <Campo
+                label="Confirmar senha"
+                name="confirmarSenha"
+                type={mostrarSenha ? 'text' : 'password'}
+                value={confirmarSenha}
+                onChange={(event) => setConfirmarSenha(event.target.value)}
+                placeholder="Digite a senha novamente"
+                required
+                autoComplete="new-password"
+              />
+
+              <button
+                type="button"
+                onClick={() => setMostrarSenha((atual) => !atual)}
+                className="text-sm font-medium text-[#0C4A45] hover:underline"
+              >
+                {mostrarSenha ? 'Ocultar senhas' : 'Mostrar senhas'}
+              </button>
+
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-[#E05C2A] px-4 py-3 font-semibold text-white transition hover:bg-[#c94c20] focus:outline-none focus:ring-2 focus:ring-[#E05C2A]/40"
+              >
+                Continuar →
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={finalizarCadastro} className="space-y-4">
+              <Campo
+                label="Nome do estabelecimento"
+                name="nomeEstabelecimento"
+                value={nomeEstabelecimento}
+                onChange={(event) =>
+                  setNomeEstabelecimento(event.target.value)
+                }
+                placeholder="Ex.: Clínica Veterinária UniVet"
+                required
+              />
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="tipoEstabelecimento"
+                  className="block text-sm font-medium text-[#263A35]"
+                >
+                  Tipo de estabelecimento *
                 </label>
 
                 <select
-                  value={form.tipoEstabelecimento}
-                  onChange={e =>
-                    set('tipoEstabelecimento', e.target.value)
+                  id="tipoEstabelecimento"
+                  name="tipoEstabelecimento"
+                  value={tipoEstabelecimento}
+                  onChange={(event) =>
+                    setTipoEstabelecimento(event.target.value)
                   }
-                  className={`w-full bg-white border rounded-[10px] px-4 py-3 text-sm text-[#0C1A1A] focus:outline-none focus:ring-2 transition-all ${
-                    erros.tipoEstabelecimento
-                      ? 'border-rose-400 focus:ring-rose-200'
-                      : 'border-[#D8D5CE] focus:ring-[#0C4A45]/30 focus:border-[#0C4A45]'
-                  }`}
+                  required
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-[#0C4A45] focus:ring-2 focus:ring-[#0C4A45]/10"
                 >
-                  <option value="">Selecione uma opção</option>
-                  <option value="CLINICA">Clínica</option>
+                  <option value="CLINICA">Clínica veterinária</option>
                   <option value="CONSULTORIO">Consultório</option>
-                  <option value="HOSPITAL">Hospital</option>
+                  <option value="HOSPITAL">Hospital veterinário</option>
                   <option value="AUTONOMO">Autônomo</option>
                 </select>
-
-                {erros.tipoEstabelecimento && (
-                  <p className="text-xs text-rose-500 mt-1">
-                    {erros.tipoEstabelecimento}
-                  </p>
-                )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[#0C1A1A] mb-2">
-                  Qual é o seu perfil?{' '}
-                  <span className="text-rose-500">*</span>
-                </label>
+              <p className="rounded-xl bg-[#F7F5F0] p-3 text-sm leading-5 text-gray-600">
+                Sua conta será cadastrada como administrador do
+                estabelecimento. Você poderá cadastrar veterinários e outros
+                funcionários depois.
+              </p>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    {
-                      value: 'veterinario',
-                      label: 'Veterinário(a)',
-                      icon: '🩺',
-                    },
-                    {
-                      value: 'outro',
-                      label: 'Outro profissional',
-                      icon: '👤',
-                    },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => set('perfil', opt.value)}
-                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                        form.perfil === opt.value
-                          ? 'border-[#0C4A45] bg-[#E8F4F0]'
-                          : 'border-[#D8D5CE] bg-white hover:border-[#0C4A45]/40'
-                      }`}
-                    >
-                      <span className="text-2xl">{opt.icon}</span>
+              <button
+                type="submit"
+                disabled={carregando}
+                className="w-full rounded-xl bg-[#E05C2A] px-4 py-3 font-semibold text-white transition hover:bg-[#c94c20] focus:outline-none focus:ring-2 focus:ring-[#E05C2A]/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {carregando ? 'Criando conta...' : 'Criar conta e acessar →'}
+              </button>
 
-                      <span className="text-sm font-medium text-[#0C1A1A]">
-                        {opt.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {erros.perfil && (
-                  <p className="text-xs text-rose-500 mt-1">
-                    {erros.perfil}
-                  </p>
-                )}
-              </div>
-
-              {isVet && (
-                <div className="p-4 bg-[#E8F4F0] rounded-xl border border-[#0C4A45]/20 space-y-3">
-                  <p className="text-xs font-semibold text-[#0C4A45]">
-                    Registro profissional
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2">
-                      <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                        Número do CRMV{' '}
-                        <span className="text-rose-500">*</span>
-                      </label>
-
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={form.crmv}
-                        onChange={e =>
-                          set(
-                            'crmv',
-                            e.target.value
-                              .replace(/\D/g, '')
-                              .slice(0, 6)
-                          )
-                        }
-                        placeholder="12345"
-                        className="w-full bg-white border border-[#D8D5CE] rounded-[10px] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/30 focus:border-[#0C4A45]"
-                      />
-
-                      {erros.crmv && (
-                        <p className="text-xs text-rose-500 mt-1">
-                          {erros.crmv}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-[#0C1A1A] mb-1.5">
-                        UF <span className="text-rose-500">*</span>
-                      </label>
-
-                      <select
-                        value={form.crmvUF}
-                        onChange={e =>
-                          set('crmvUF', e.target.value)
-                        }
-                        className="w-full bg-white border border-[#D8D5CE] rounded-[10px] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4A45]/30 focus:border-[#0C4A45]"
-                      >
-                        <option value="">UF</option>
-
-                        {UFS.map(uf => (
-                          <option key={uf} value={uf}>
-                            {uf}
-                          </option>
-                        ))}
-                      </select>
-
-                      {erros.crmvUF && (
-                        <p className="text-xs text-rose-500 mt-1">
-                          {erros.crmvUF}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-[#6B7280]">
-                    O CRMV será exibido como informado / não verificado no MVP.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-start gap-2.5">
-                <input
-                  id="termos"
-                  type="checkbox"
-                  required
-                  className="w-4 h-4 mt-0.5 rounded border-[#D8D5CE] accent-[#0C4A45] cursor-pointer shrink-0"
-                />
-
-                <label
-                  htmlFor="termos"
-                  className="text-xs text-[#6B7280] cursor-pointer leading-relaxed"
-                >
-                  Li e concordo com os{' '}
-                  <Link
-                    to="/termos"
-                    className="text-[#0C4A45] hover:underline font-medium"
-                  >
-                    Termos de Uso
-                  </Link>{' '}
-                  e a{' '}
-                  <Link
-                    to="/privacidade"
-                    className="text-[#0C4A45] hover:underline font-medium"
-                  >
-                    Política de Privacidade
-                  </Link>{' '}
-                  do UniVet.
-                </label>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  disabled={loading}
-                  className="flex-1 border border-[#D8D5CE] text-[#6B7280] font-medium py-3 rounded-[10px] hover:bg-[#EAE8E3] transition-colors text-sm"
-                >
-                  Voltar
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-[#E05C2A] text-white font-semibold py-3 rounded-[10px] hover:bg-[#C4501F] transition-colors disabled:opacity-60 text-sm flex items-center justify-center gap-2"
-                >
-                  {loading ? 'Criando conta...' : 'Criar conta'}
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={carregando}
+                onClick={() => {
+                  setErro('')
+                  setEtapa(1)
+                }}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+              >
+                ← Voltar
+              </button>
             </form>
           )}
         </div>
+        
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Já tem uma conta?{' '}
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="font-semibold text-[#0C4A45] hover:underline"
+          >
+            Entrar
+          </button>
+        </p>
       </div>
-    </div>
+    </main>
   )
 }

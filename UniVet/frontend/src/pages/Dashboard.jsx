@@ -410,7 +410,6 @@ function Dashboard() {
   return (
     <div className="p-6 max-w-[1500px] mx-auto">
 
-      {/* Cabeçalho */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <p className="text-sm text-[#7A807E]">
@@ -450,14 +449,12 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Erro */}
       {erro && (
         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-700">
           {erro}
         </div>
       )}
 
-      {/* Cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
 
         <StatCard
@@ -535,13 +532,10 @@ function Dashboard() {
 
       </div>
 
-      {/* Conteúdo principal */}
       <div className="grid grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] gap-5">
 
-        {/* Coluna principal */}
         <div className="space-y-5">
 
-          {/* Consultas de hoje */}
           <section className="bg-white border border-[#EAE8E3] rounded-2xl overflow-hidden">
 
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#EEECE8]">
@@ -638,7 +632,6 @@ function Dashboard() {
 
           </section>
 
-          {/* Próximos retornos */}
           <section className="bg-white border border-[#EAE8E3] rounded-2xl overflow-hidden">
 
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#EEECE8]">
@@ -711,10 +704,8 @@ function Dashboard() {
 
         </div>
 
-        {/* Coluna lateral */}
         <div className="space-y-5">
 
-          {/* Atenção */}
           <section className="bg-white border border-[#EAE8E3] rounded-2xl overflow-hidden">
 
             <div className="px-5 py-4 border-b border-[#EEECE8]">
@@ -841,7 +832,6 @@ function Dashboard() {
 
           </section>
 
-          {/* Vacinas pendentes */}
           <section className="bg-white border border-[#EAE8E3] rounded-2xl overflow-hidden">
 
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#EEECE8]">
@@ -945,7 +935,6 @@ function Dashboard() {
 
           </section>
 
-          {/* Resumo */}
           <section className="bg-[#0C4A45] rounded-2xl p-5 text-white">
 
             <h2 className="text-sm font-semibold">

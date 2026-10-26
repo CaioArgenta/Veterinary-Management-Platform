@@ -1,3 +1,4 @@
+
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import logo from '../assets/gps.png'
@@ -43,8 +44,8 @@ const NAV = [
     ),
   },
   {
-    to: '/app/prontuario',
-    label: 'Prontuário',
+    to: '/app/consultas',
+    label: 'Consultas',
     icon: (
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -66,6 +67,18 @@ const NAV = [
       </>
     ),
   },
+  {
+    to: '/app/funcionarios',
+    label: 'Funcionários',
+    icon: (
+      <>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="10" cy="7" r="4" />
+        <path d="M20 8v6" />
+        <path d="M23 11h-6" />
+      </>
+    ),
+  },
 ]
 
 const PAGE_TITLES = {
@@ -73,8 +86,10 @@ const PAGE_TITLES = {
   '/app/tutores': 'Tutores',
   '/app/animais': 'Animais',
   '/app/agenda': 'Agenda',
-  '/app/prontuario': 'Prontuário',
+  '/app/consultas': 'Consultas',
   '/app/vacinacao': 'Vacinação',
+  '/app/funcionarios': 'Funcionários',
+  '/app/perfil': 'Meu perfil',
 }
 
 function Logo() {
@@ -130,8 +145,7 @@ function DashboardLayout() {
 
       const { data, error } = await supabase
         .from('perfis')
-        .select(
-          `
+        .select(`
           id,
           nome_completo,
           email,
@@ -139,8 +153,7 @@ function DashboardLayout() {
           tipo,
           crmv,
           estabelecimento_id
-        `
-        )
+        `)
         .eq('id', user.id)
         .single()
 
@@ -168,10 +181,9 @@ function DashboardLayout() {
           'Erro ao carregar vacinas pendentes:',
           vacinaError
         )
-        return
+      } else {
+        setVacinasPendentes(count || 0)
       }
-
-      setVacinasPendentes(count || 0)
     } catch (error) {
       console.error('Erro inesperado:', error)
     } finally {
@@ -191,10 +203,7 @@ function DashboardLayout() {
   }
 
   const nomeCompleto = perfil?.nome_completo || 'Usuário'
-
-  const primeiroNome = nomeCompleto
-    .trim()
-    .split(' ')[0]
+  const primeiroNome = nomeCompleto.trim().split(' ')[0]
 
   const inicial = primeiroNome
     ? primeiroNome.charAt(0).toUpperCase()
@@ -205,14 +214,14 @@ function DashboardLayout() {
   const tituloPagina =
     PAGE_TITLES[location.pathname] || 'UniVet'
 
+  const itensMenu = NAV
+
   return (
     <div
       className="flex h-screen bg-[#F7F5F0] overflow-hidden"
       style={{ fontFamily: 'Outfit, sans-serif' }}
     >
-      {/* Sidebar */}
       <aside className="w-56 bg-[#0C4A45] flex flex-col shrink-0">
-
         <Logo />
 
         <div className="px-3 mb-2">
@@ -222,7 +231,7 @@ function DashboardLayout() {
         </div>
 
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-          {NAV.map((item) => (
+          {itensMenu.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -241,6 +250,8 @@ function DashboardLayout() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     className="w-5 h-5 shrink-0"
                   >
                     {item.icon}
@@ -266,10 +277,33 @@ function DashboardLayout() {
           ))}
         </nav>
 
-        {/* Usuário */}
         <div className="p-3 border-t border-white/10">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-white/10 transition-colors">
+          <NavLink
+            to="/app/perfil"
+            className={({ isActive }) =>
+              `mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-white/20 text-white'
+                  : 'text-white/60 hover:bg-white/10 hover:text-white'
+              }`
+            }
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5 shrink-0"
+            >
+              <circle cx="12" cy="8" r="4" />
+              <path d="M5 21a7 7 0 0 1 14 0" />
+            </svg>
+            Meu perfil
+          </NavLink>
 
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl">
             <div className="w-8 h-8 rounded-full bg-[#7DD3C8] flex items-center justify-center text-[#0C4A45] font-bold text-sm shrink-0">
               {carregando ? '...' : inicial}
             </div>
@@ -291,6 +325,7 @@ function DashboardLayout() {
             <button
               onClick={sair}
               title="Sair"
+              aria-label="Sair da conta"
               className="text-white/40 hover:text-white transition-colors"
             >
               <svg
@@ -310,19 +345,10 @@ function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Conteúdo principal */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-        <header className="h-14 bg-white border-b border-[#EAE8E3] flex items-center px-6 shrink-0">
-          <span className="font-semibold text-[#0C1A1A]">
-            {tituloPagina}
-          </span>
-        </header>
-
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
-
       </div>
     </div>
   )
