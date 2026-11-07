@@ -28,16 +28,12 @@ function App() {
         <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/termos" element={<Termos />} />
         <Route path="/contato" element={<Contato />} />
+        <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
         <Route path="/app" element={<DashboardLayout />}>
           <Route
             index
             element={<Navigate to="dashboard" replace />}
-          />
-
-          <Route
-            path="/redefinir-senha"
-            element={<RedefinirSenha />}
           />
 
           <Route
