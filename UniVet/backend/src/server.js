@@ -25,6 +25,7 @@ const app = express()
 const corsOptions = {
   origin: [
     'https://univet-clinica.vercel.app',
+    'https://univet-aa44ijvf5-caiooaargentagmailcoms-projects.vercel.app',
     'https://musical-pancake-7g9vpx44rq72x545-5173.app.github.dev',
     'http://localhost:5173'
   ],
