@@ -99,24 +99,7 @@ export async function recuperarSenha(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(
     email.trim(),
     {
-      redirectTo: `${window.location.origin}/redefinir-senha`,
-    }
-  )
-
-  if (error) {
-    throw new Error('Não foi possível enviar o e-mail de recuperação.')
-  }
-}
-
-export async function recuperarSenha(email) {
-  if (!email.trim()) {
-    throw new Error('Informe seu e-mail para recuperar a senha.')
-  }
-
-  const { error } = await supabase.auth.resetPasswordForEmail(
-    email.trim(),
-    {
-      redirectTo: `${window.location.origin}/redefinir-senha?tipo=recuperacao`,
+      redirectTo: 'https://univet-clinica.vercel.app/redefinir-senha',
     }
   )
 
