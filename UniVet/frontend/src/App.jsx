@@ -16,6 +16,7 @@ import Privacidade from './pages/Privacidade'
 import Termos from './pages/Termos'
 import Contato from './pages/Contato'
 import Perfil from './pages/Perfil'
+import RedefinirSenha from './pages/RedefinirSenha'
 
 function App() {
   return (
@@ -32,6 +33,11 @@ function App() {
           <Route
             index
             element={<Navigate to="dashboard" replace />}
+          />
+
+          <Route
+            path="/redefinir-senha"
+            element={<RedefinirSenha />}
           />
 
           <Route

@@ -118,6 +118,8 @@ export default function Cadastro() {
           data: {
             nome_completo: nome.trim(),
             telefone: telefone.trim() || null,
+            nome_estabelecimento: nomeEstabelecimento.trim(),
+            tipo_estabelecimento: tipoEstabelecimento,
           },
         },
       })
